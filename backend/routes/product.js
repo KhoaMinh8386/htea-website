@@ -6,23 +6,25 @@ const db = require("../db");
 router.get("/", async (req, res) => {
   try {
     const productsResult = await db.query("SELECT * FROM product ORDER BY id ASC");
-    const products = productsResult.rows;
-    res.json(products);
+    res.json(productsResult.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 🟢 API: Thêm sản phẩm mới
+// 🟢 API: Thêm sản phẩm mới (Không có description)
 router.post("/", async (req, res) => {
-  const { name, price, description } = req.body;
-  
+  const { name, price } = req.body; // Xóa description
+
+  if (!name || !price) {
+    return res.status(400).json({ error: "Tên và giá sản phẩm là bắt buộc!" });
+  }
+
   try {
     const newProduct = await db.query(
-      "INSERT INTO product (name, price, description) VALUES ($1, $2, $3) RETURNING *",
-      [name, price, description]
+      "INSERT INTO product (name, price) VALUES ($1, $2) RETURNING *",
+      [name, price]
     );
-    
     res.status(201).json({ message: "Sản phẩm đã thêm!", product: newProduct.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -40,17 +42,16 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// 🟢 API: Sửa thông tin sản phẩm theo ID
+// 🟢 API: Sửa thông tin sản phẩm theo ID (Không có description)
 router.put("/:id", async (req, res) => {
   const { id } = req.params;
-  const { name, price, description } = req.body;
+  const { name, price } = req.body; // Xóa description
 
   try {
     await db.query(
-      "UPDATE product SET name=$1, price=$2, description=$3 WHERE id=$4",
-      [name, price, description, id]
+      "UPDATE product SET name=$1, price=$2 WHERE id=$3",
+      [name, price, id]
     );
-
     res.json({ message: "Sản phẩm đã cập nhật!" });
   } catch (err) {
     res.status(500).json({ error: err.message });
