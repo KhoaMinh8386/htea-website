@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const { createOrder, getOrders, getOrderById, updateOrderStatus, getOrderStats } = require('../controllers/orderController');
+const { authenticateToken } = require('../middleware/auth');
 
 let orders = [
   {
@@ -20,31 +22,20 @@ let orders = [
 ];
 
 // 📌 Lấy danh sách đơn hàng
-router.get("/orders", (req, res) => {
-  res.json(orders);
-});
+router.get("/", authenticateToken, getOrders);
 
 // 📌 Thêm đơn hàng mới
-router.post("/orders", (req, res) => {
-  const newOrder = {
-    id: orders.length + 1,
-    username: req.body.username,
-    total_price: req.body.total_price,
-    items: req.body.items,
-  };
-  orders.push(newOrder);
-  res.json(newOrder);
-});
+router.post("/", authenticateToken, createOrder);
 
 // 📌 Xóa đơn hàng
-router.delete("/orders/:id", (req, res) => {
+router.delete("/:id", authenticateToken, (req, res) => {
   const orderId = parseInt(req.params.id);
   orders = orders.filter((order) => order.id !== orderId);
   res.json({ message: "Đã xóa đơn hàng!" });
 });
 
 // 📌 Cập nhật đơn hàng
-router.put("/orders/:id", (req, res) => {
+router.put("/:id", authenticateToken, (req, res) => {
   const orderId = parseInt(req.params.id);
   const index = orders.findIndex((order) => order.id === orderId);
   if (index !== -1) {
@@ -54,5 +45,14 @@ router.put("/orders/:id", (req, res) => {
     res.status(404).json({ message: "Không tìm thấy đơn hàng!" });
   }
 });
+
+// Lấy chi tiết đơn hàng
+router.get("/:id", authenticateToken, getOrderById);
+
+// Cập nhật trạng thái đơn hàng
+router.put("/:id/status", authenticateToken, updateOrderStatus);
+
+// Lấy thống kê đơn hàng
+router.get("/stats", authenticateToken, getOrderStats);
 
 module.exports = router;

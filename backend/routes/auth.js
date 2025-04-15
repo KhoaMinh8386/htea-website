@@ -1,8 +1,19 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const db = require("../db");
+const db = require("../config/db");
 const router = express.Router();
+const { auth } = require('../middleware/auth');
+const {
+    register,
+    login,
+    forgotPassword,
+    resetPassword,
+    logout
+} = require('../controllers/authController');
+const { body, validationResult } = require('express-validator');
+const { User } = require('../models/User');
+const { sequelize } = require('sequelize');
 
 router.get("/users", async (req, res) => {
     try {
@@ -13,39 +24,160 @@ router.get("/users", async (req, res) => {
     }
 });
 
-// 🔹 Đăng ký
-router.post("/register", async (req, res) => {
-  const { username, password } = req.body;
+// @desc    Register user
+// @route   POST /api/auth/register
+// @access  Public
+router.post(
+  '/register',
+  [
+    body('username').trim().isLength({ min: 3 }).withMessage('Username must be at least 3 characters long'),
+    body('email').isEmail().withMessage('Please include a valid email'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
+    body('full_name').optional().trim().notEmpty().withMessage('Full name cannot be empty')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-  if (!username || !password) return res.status(400).json({ error: "Vui lòng nhập đầy đủ thông tin" });
+    const { username, email, password, full_name } = req.body;
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+    try {
+      // Check if user exists
+      const userExists = await User.findOne({
+        where: {
+          [sequelize.Op.or]: [
+            { username },
+            { email }
+          ]
+        }
+      });
+
+      if (userExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'User already exists'
+        });
+      }
+
+      // Create user
+      const user = await User.create({
+        username,
+        email,
+        password,
+        full_name
+      });
+
+      sendTokenResponse(user, 201, res);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        success: false,
+        message: 'Server Error'
+      });
+    }
+  }
+);
+
+// @desc    Login user
+// @route   POST /api/auth/login
+// @access  Public
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Please include a valid email'),
+    body('password').exists().withMessage('Password is required')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    try {
+      // Check for user
+      const user = await User.findOne({ where: { email } });
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+
+      // Check if password matches
+      const isMatch = await user.matchPassword(password);
+
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
+
+      // Update last login
+      user.last_login = new Date();
+      await user.save();
+
+      sendTokenResponse(user, 200, res);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        success: false,
+        message: 'Server Error'
+      });
+    }
+  }
+);
+
+// @desc    Get current logged in user
+// @route   GET /api/auth/me
+// @access  Private
+router.get('/me', auth, async (req, res) => {
   try {
-    const result = await db.query(
-      "INSERT INTO users (username, password, created_at) VALUES ($1, $2, NOW()) RETURNING id",
-      [username, hashedPassword]
-    );
-    res.status(201).json({ message: "Đăng ký thành công!" });
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: user
+    });
   } catch (err) {
-    res.status(500).json({ error: "Lỗi server" });
+    console.error(err);
+    res.status(500).json({
+      success: false,
+      message: 'Server Error'
+    });
   }
 });
 
-// 🔹 Đăng nhập
-router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  const result = await db.query("SELECT * FROM users WHERE username = $1", [username]);
+// @desc    Log user out / clear cookie
+// @route   GET /api/auth/logout
+// @access  Private
+router.get('/logout', auth, logout);
 
-  if (result.rows.length === 0) return res.status(400).json({ error: "Sai tên đăng nhập hoặc mật khẩu!" });
 
-  const user = result.rows[0];
-  const passwordMatch = await bcrypt.compare(password, user.password);
 
-  if (!passwordMatch) return res.status(400).json({ error: "Sai mật khẩu!" });
+// Get token from model, create cookie and send response
+const sendTokenResponse = (user, statusCode, res) => {
+  // Create token
+  const token = user.getSignedJwtToken();
 
-  const token = jwt.sign({ userId: user.id }, "SECRET_KEY", { expiresIn: "1h" });
-
-  res.json({ id: user.id, username: user.username, role: user.role, token });
-});
+  res.status(statusCode).json({
+    success: true,
+    token,
+    user: {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role
+    }
+  });
+};
 
 module.exports = router;
