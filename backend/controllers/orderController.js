@@ -4,126 +4,168 @@ const pool = require('../config/db');
 const createOrder = async (req, res) => {
     const client = await pool.connect();
     try {
-        console.log('Received order data:', req.body);
+        console.log('Starting order creation process...');
+        console.log('Request body:', JSON.stringify(req.body, null, 2));
+        console.log('User:', JSON.stringify(req.user, null, 2));
+        
         await client.query('BEGIN');
+        console.log('Transaction started');
 
-        const { items, customer_name, customer_email, customer_phone, delivery_address, notes } = req.body;
-        const userId = req.user ? req.user.id : null;
+        // Get user_id from authenticated user
+        const userId = req.user?.id;
+        if (!userId) {
+            throw new Error('User not authenticated');
+        }
 
         // Validate required fields
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({
-                success: false,
-                message: 'Danh sách sản phẩm không hợp lệ'
-            });
+        const requiredFields = ['customer_name', 'customer_email', 'phone', 'shipping_address', 'total_amount', 'items'];
+        for (const field of requiredFields) {
+            if (!req.body[field]) {
+                throw new Error(`Missing required field: ${field}`);
+            }
         }
 
-        if (!customer_name || !customer_email || !customer_phone || !delivery_address) {
-            return res.status(400).json({
-                success: false,
-                message: 'Thiếu thông tin bắt buộc'
-            });
+        // Validate items
+        if (!Array.isArray(req.body.items) || req.body.items.length === 0) {
+            throw new Error('Items must be a non-empty array');
         }
 
-        // Tính tổng tiền và kiểm tra số lượng tồn kho
-        let totalAmount = 0;
-        for (const item of items) {
+        // Sanitize and validate items
+        const sanitizedItems = [];
+        for (const item of req.body.items) {
+            console.log('Processing item:', JSON.stringify(item, null, 2));
+            
+            // Validate required fields
             if (!item.product_id || !item.quantity || !item.price) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({
-                    success: false,
-                    message: 'Thông tin sản phẩm không hợp lệ'
-                });
+                throw new Error(`Invalid item data: ${JSON.stringify(item)}`);
             }
 
-            const product = await client.query(
-                'SELECT price, stock_quantity FROM products WHERE id = $1 AND is_available = true',
-                [item.product_id]
+            // Convert values to numbers
+            const productId = parseInt(item.product_id);
+            const quantity = parseInt(item.quantity);
+            const price = parseFloat(item.price);
+
+            if (isNaN(productId) || isNaN(quantity) || isNaN(price)) {
+                throw new Error(`Invalid numeric values in item: ${JSON.stringify(item)}`);
+            }
+
+            // Validate product exists
+            const productResult = await client.query(
+                'SELECT id, price FROM products WHERE id = $1',
+                [productId]
             );
 
-            if (!product.rows[0]) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({
-                    success: false,
-                    message: `Sản phẩm ID ${item.product_id} không tồn tại hoặc đã ngừng kinh doanh`
-                });
+            if (!productResult.rows[0]) {
+                throw new Error(`Product with id ${productId} not found`);
             }
 
-            if (product.rows[0].stock_quantity < item.quantity) {
-                await client.query('ROLLBACK');
-                return res.status(400).json({
-                    success: false,
-                    message: `Sản phẩm ID ${item.product_id} không đủ số lượng tồn kho`
-                });
+            // Validate price matches
+            const productPrice = parseFloat(productResult.rows[0].price);
+            if (Math.abs(productPrice - price) > 0.01) { // Allow small floating point differences
+                throw new Error(`Price mismatch for product ${productId}. Expected: ${productPrice}, Received: ${price}`);
             }
 
-            totalAmount += product.rows[0].price * item.quantity;
+            sanitizedItems.push({
+                product_id: productId,
+                quantity: quantity,
+                price: price
+            });
         }
 
-        console.log('Creating order with total amount:', totalAmount);
+        console.log('Sanitized items:', JSON.stringify(sanitizedItems, null, 2));
 
-        // Tạo đơn hàng
+        // Convert total_amount to number
+        const totalAmount = parseFloat(req.body.total_amount);
+        if (isNaN(totalAmount)) {
+            throw new Error('Invalid total_amount value');
+        }
+
+        // Create order
         const orderResult = await client.query(
             `INSERT INTO orders (
-                user_id, customer_name, customer_email, customer_phone, 
-                delivery_address, total_amount, notes, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
-            RETURNING id`,
-            [userId, customer_name, customer_email, customer_phone, delivery_address, totalAmount, notes]
+                user_id, 
+                total_amount, 
+                status, 
+                shipping_address, 
+                phone,
+                customer_name,
+                customer_email,
+                notes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+            [
+                userId,
+                totalAmount,
+                'pending',
+                req.body.shipping_address,
+                req.body.phone,
+                req.body.customer_name,
+                req.body.customer_email,
+                req.body.notes || null
+            ]
         );
 
-        const orderId = orderResult.rows[0].id;
-        console.log('Created order with ID:', orderId);
+        console.log('Order created with result:', JSON.stringify(orderResult.rows, null, 2));
 
-        // Thêm chi tiết đơn hàng và cập nhật số lượng tồn kho
-        for (const item of items) {
-            const product = await client.query(
-                'SELECT price FROM products WHERE id = $1',
-                [item.product_id]
-            );
+        const orderId = orderResult.rows[0]?.id;
+        
+        if (!orderId) {
+            throw new Error('Failed to create order - no ID returned');
+        }
 
+        console.log('Created order ID:', orderId);
+
+        // Add order items
+        for (const item of sanitizedItems) {
+            console.log('Adding order item:', JSON.stringify(item, null, 2));
             await client.query(
                 `INSERT INTO order_items (
-                    order_id, product_id, quantity, price
+                    order_id, 
+                    product_id, 
+                    quantity, 
+                    price
                 ) VALUES ($1, $2, $3, $4)`,
-                [
-                    orderId,
-                    item.product_id,
-                    item.quantity,
-                    product.rows[0].price
-                ]
-            );
-
-            // Cập nhật số lượng tồn kho
-            await client.query(
-                'UPDATE products SET stock_quantity = stock_quantity - $1 WHERE id = $2',
-                [item.quantity, item.product_id]
+                [orderId, item.product_id, item.quantity, item.price]
             );
         }
 
-        // Ghi log
-        if (userId) {
-            await client.query(
-                `INSERT INTO audit_logs (user_id, action, table_name, record_id, new_values)
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [userId, 'CREATE', 'orders', orderId, JSON.stringify({ items, totalAmount })]
-            );
-        }
+        console.log('All order items added successfully');
+
+        // Get full order details
+        const orderDetails = await client.query(
+            `SELECT 
+                o.*,
+                json_agg(
+                    json_build_object(
+                        'id', oi.id,
+                        'product_id', oi.product_id,
+                        'quantity', oi.quantity,
+                        'price', oi.price
+                    )
+                ) as items
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            WHERE o.id = $1
+            GROUP BY o.id`,
+            [orderId]
+        );
+
+        console.log('Retrieved order details:', JSON.stringify(orderDetails.rows[0], null, 2));
 
         await client.query('COMMIT');
+        console.log('Transaction committed successfully');
 
         res.status(201).json({
             success: true,
             message: 'Đặt hàng thành công',
-            order_id: orderId
+            data: orderDetails.rows[0]
         });
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Error in createOrder:', error);
+        console.error('Error in order creation:', error);
+        console.error('Error stack:', error.stack);
         res.status(500).json({
             success: false,
-            message: 'Lỗi server',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            message: error.message || 'Có lỗi xảy ra khi đặt hàng'
         });
     } finally {
         client.release();

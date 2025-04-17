@@ -11,7 +11,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const { cartItems } = useSelector((state) => state.cart);
-  const { loading, error, success } = useSelector((state) => state.orders);
+  const { loading, orderError, success } = useSelector((state) => state.orders);
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_email: '',
@@ -21,6 +21,7 @@ const Checkout = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [validationError, setValidationError] = useState(null);
 
   // Kiểm tra đăng nhập khi component mount
   useEffect(() => {
@@ -41,10 +42,10 @@ const Checkout = () => {
 
   // Xử lý lỗi
   useEffect(() => {
-    if (error) {
-      toast.error(error);
+    if (orderError) {
+      toast.error(orderError);
     }
-  }, [error]);
+  }, [orderError]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -69,47 +70,70 @@ const Checkout = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setSubmitError(null);
-
     try {
-      // Kiểm tra kết nối server trước khi gửi đơn hàng
-      await checkServerConnection();
+      // Validate required fields
+      if (!formData.customer_name || !formData.customer_email || !formData.phone || !formData.shipping_address) {
+        throw new Error('Vui lòng điền đầy đủ thông tin');
+      }
 
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.customer_email)) {
+        throw new Error('Email không hợp lệ');
+      }
+
+      // Validate phone format
+      const phoneRegex = /^[0-9]{10,11}$/;
+      if (!phoneRegex.test(formData.phone)) {
+        throw new Error('Số điện thoại không hợp lệ');
+      }
+
+      // Format cart items for API
+      const formattedItems = cartItems.map(item => {
+        if (!item.id || !item.quantity || !item.price) {
+          throw new Error('Thông tin sản phẩm không hợp lệ');
+        }
+        return {
+          product_id: parseInt(item.id),
+          quantity: parseInt(item.quantity),
+          price: parseFloat(item.price)
+        };
+      });
+
+      // Calculate total amount
+      const calculatedTotal = formattedItems.reduce((total, item) => {
+        return total + (item.price * item.quantity);
+      }, 0);
+
+      // Prepare order data
       const orderData = {
-        customer_name: formData.customer_name,
-        customer_email: formData.customer_email,
-        phone: formData.phone,
+        items: formattedItems,
         shipping_address: formData.shipping_address,
-        notes: formData.notes,
-        items: cartItems.map(item => ({
-          product_id: item.id,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        total_amount: calculateTotal(),
-        status: 'pending'
+        phone: formData.phone,
+        total_amount: calculatedTotal,
+        notes: formData.notes || '',
+        customer_name: formData.customer_name,
+        customer_email: formData.customer_email
       };
 
-      console.log('Submitting order data:', orderData);
+      console.log("Order Data to be sent:", orderData);
+
+      // Check server connection before submitting
+      await checkServerConnection();
+
+      // Submit order
       const result = await dispatch(createOrder(orderData)).unwrap();
-      console.log('Order created successfully:', result);
       
-      // Xóa giỏ hàng sau khi đặt hàng thành công
-      dispatch(clearCart());
-      
-      // Chuyển hướng đến trang xác nhận
-      navigate('/order-confirmation', { 
-        state: { 
-          orderId: result.id,
-          orderData: result
-        } 
-      });
-    } catch (err) {
-      console.error('Error in handleSubmit:', err);
-      setSubmitError(err.message || 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.');
-    } finally {
-      setIsSubmitting(false);
+      if (result.success) {
+        toast.success('Đặt hàng thành công!');
+        navigate('/order-success');
+      } else {
+        throw new Error(result.message || 'Có lỗi xảy ra khi đặt hàng');
+      }
+    } catch (error) {
+      console.error("Error creating order:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      toast.error(error.message || 'Có lỗi xảy ra khi đặt hàng');
     }
   };
 

@@ -113,20 +113,17 @@ const Orders = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-medium mb-2">Thông tin giao hàng</h4>
-                    <p className="text-gray-600">{order.full_name}</p>
+                    <p className="text-gray-600">{order.customer_name}</p>
                     <p className="text-gray-600">{order.phone}</p>
-                    <p className="text-gray-600">{order.address}</p>
+                    <p className="text-gray-600">{order.shipping_address}</p>
                   </div>
                   <div>
                     <h4 className="font-medium mb-2">Chi tiết đơn hàng</h4>
                     <p className="text-gray-600">
-                      Phương thức thanh toán:{' '}
-                      {order.payment_method === 'cod'
-                        ? 'Thanh toán khi nhận hàng (COD)'
-                        : 'Chuyển khoản ngân hàng'}
+                      Email: {order.customer_email}
                     </p>
-                    {order.note && (
-                      <p className="text-gray-600">Ghi chú: {order.note}</p>
+                    {order.notes && (
+                      <p className="text-gray-600">Ghi chú: {order.notes}</p>
                     )}
                   </div>
                 </div>
@@ -140,8 +137,8 @@ const Orders = () => {
                   >
                     <div className="flex items-center">
                       <img
-                        src={item.image}
-                        alt={item.name}
+                        src={item.image_url}
+                        alt={item.product_name}
                         className="w-16 h-16 object-cover rounded"
                         onError={(e) => {
                           e.target.onerror = null;
@@ -150,7 +147,7 @@ const Orders = () => {
                         }}
                       />
                       <div className="ml-4">
-                        <p className="font-medium">{item.name}</p>
+                        <p className="font-medium">{item.product_name}</p>
                         <p className="text-sm text-gray-600">
                           {item.quantity} x {item.price.toLocaleString('vi-VN')}đ
                         </p>
@@ -167,7 +164,7 @@ const Orders = () => {
                 <div>
                   <p className="text-gray-600">Tổng tiền hàng</p>
                   <p className="text-lg font-bold text-green-800">
-                    {order.total.toLocaleString('vi-VN')}đ
+                    {order.total_amount.toLocaleString('vi-VN')}đ
                   </p>
                 </div>
                 {order.status === 'pending' && (

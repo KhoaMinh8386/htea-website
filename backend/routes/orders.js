@@ -51,130 +51,198 @@ router.get("/", auth, async (req, res) => {
 router.post("/", auth, async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { 
-      items, 
-      total_amount, 
-      shipping_address, 
-      phone,
+    const {
+      items,
       customer_name,
       customer_email,
-      notes 
+      phone,
+      shipping_address,
+      notes,
+      total_amount
     } = req.body;
-    const user_id = req.user.id;
+    const userId = req.user ? req.user.id : null;
 
-    // Validate input
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng chọn sản phẩm'
-      });
-    }
-
-    if (!total_amount || !shipping_address || !phone || !customer_name || !customer_email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Vui lòng điền đầy đủ thông tin'
-      });
-    }
-
-    // Thêm đơn hàng vào bảng orders
-    const [order] = await sequelize.query(`
-      INSERT INTO orders (
-        user_id, 
-        total_amount,
-        shipping_address,
-        phone,
-        customer_name,
-        customer_email,
-        notes,
-        status
-      ) VALUES (
-        :user_id, 
-        :total_amount, 
-        :shipping_address, 
-        :phone,
-        :customer_name,
-        :customer_email,
-        :notes,
-        'pending'
-      ) 
-      RETURNING *
-    `, {
-      replacements: { 
-        user_id, 
-        total_amount, 
-        shipping_address, 
-        phone,
-        customer_name,
-        customer_email,
-        notes: notes || ''
-      },
-      type: sequelize.QueryTypes.INSERT,
-      transaction
+    console.log("📦 Dữ liệu nhận được:", {
+      items,
+      customer_name,
+      customer_email,
+      phone,
+      shipping_address,
+      notes,
+      total_amount,
+      userId
     });
 
-    const orderId = order[0].id;
+    // Validate required fields
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      throw new Error('Danh sách sản phẩm không hợp lệ');
+    }
 
-    // Thêm sản phẩm vào bảng order_items
+    if (!customer_name || !customer_email || !phone || !shipping_address) {
+      throw new Error('Thiếu thông tin bắt buộc');
+    }
+
+    // Validate phone number format
+    const phoneRegex = /^[0-9]{10,11}$/;
+    if (!phoneRegex.test(phone)) {
+      throw new Error('Số điện thoại không hợp lệ');
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(customer_email)) {
+      throw new Error('Email không hợp lệ');
+    }
+
+    // Tính tổng tiền và kiểm tra sản phẩm
+    let calculatedTotalAmount = 0;
+    const sanitizedItems = [];
+
     for (const item of items) {
-      // Kiểm tra số lượng tồn kho
+      if (!item.product_id || !item.quantity || item.quantity <= 0) {
+        throw new Error('Thông tin sản phẩm không hợp lệ');
+      }
+
+      // Lấy thông tin sản phẩm từ database
       const [product] = await sequelize.query(
-        'SELECT stock_quantity FROM products WHERE id = :product_id',
+        'SELECT id, price FROM products WHERE id = :product_id AND is_available = true',
         {
-          replacements: { product_id: item.product_id },
+          replacements: { product_id: parseInt(item.product_id) },
           type: sequelize.QueryTypes.SELECT,
           transaction
         }
       );
 
       if (!product) {
-        throw new Error(`Sản phẩm không tồn tại: ${item.product_id}`);
+        throw new Error(`Sản phẩm ID ${item.product_id} không tồn tại hoặc đã ngừng kinh doanh`);
       }
 
-      if (product.stock_quantity < item.quantity) {
-        throw new Error(`Sản phẩm ${item.product_id} không đủ số lượng`);
+      const itemPrice = parseFloat(product.price);
+      const itemQuantity = parseInt(item.quantity);
+
+      if (isNaN(itemPrice) || isNaN(itemQuantity)) {
+        throw new Error('Giá hoặc số lượng sản phẩm không hợp lệ');
       }
 
-      // Thêm vào order_items
-      await sequelize.query(`
-        INSERT INTO order_items (
-          order_id,
-          product_id,
-          quantity,
-          price
-        ) VALUES (:order_id, :product_id, :quantity, :price)
-      `, {
+      calculatedTotalAmount += itemPrice * itemQuantity;
+      sanitizedItems.push({
+        product_id: parseInt(item.product_id),
+        quantity: itemQuantity,
+        price: itemPrice
+      });
+    }
+
+    // Kiểm tra tổng tiền
+    const totalAmount = parseFloat(total_amount);
+    if (isNaN(totalAmount)) {
+      throw new Error('Tổng tiền không hợp lệ');
+    }
+
+    if (Math.abs(calculatedTotalAmount - totalAmount) > 0.01) {
+      throw new Error('Tổng tiền đơn hàng không khớp');
+    }
+
+    // Tạo đơn hàng
+    const [orderResult] = await sequelize.query(
+      `INSERT INTO orders (
+        user_id, 
+        total_amount, 
+        status, 
+        shipping_address, 
+        phone,
+        customer_name,
+        customer_email,
+        notes,
+        created_at,
+        updated_at
+      ) VALUES (
+        :user_id, 
+        :total_amount, 
+        'pending', 
+        :shipping_address, 
+        :phone,
+        :customer_name,
+        :customer_email,
+        :notes,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      ) RETURNING id`,
+      {
         replacements: {
-          order_id: orderId,
-          product_id: item.product_id,
-          quantity: item.quantity,
-          price: item.price
+          user_id: parseInt(userId),
+          total_amount: calculatedTotalAmount,
+          shipping_address,
+          phone,
+          customer_name,
+          customer_email,
+          notes: notes || null
         },
         type: sequelize.QueryTypes.INSERT,
         transaction
-      });
+      }
+    );
 
-      // Cập nhật số lượng tồn kho
-      await sequelize.query(`
-        UPDATE products 
-        SET stock_quantity = stock_quantity - :quantity
-        WHERE id = :product_id
-      `, {
-        replacements: {
-          quantity: item.quantity,
-          product_id: item.product_id
-        },
-        type: sequelize.QueryTypes.UPDATE,
-        transaction
-      });
+    const orderId = orderResult[0].id;
+    console.log("📝 Đã tạo đơn hàng:", orderId);
+
+    // Thêm chi tiết đơn hàng
+    for (const item of sanitizedItems) {
+      await sequelize.query(
+        `INSERT INTO order_items (
+          order_id, 
+          product_id, 
+          quantity, 
+          price,
+          created_at
+        ) VALUES (
+          :order_id, 
+          :product_id, 
+          :quantity, 
+          :price,
+          CURRENT_TIMESTAMP
+        )`,
+        {
+          replacements: {
+            order_id: orderId,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.price
+          },
+          type: sequelize.QueryTypes.INSERT,
+          transaction
+        }
+      );
     }
 
     await transaction.commit();
 
+    // Lấy thông tin đơn hàng vừa tạo
+    const [orderDetails] = await sequelize.query(
+      `SELECT o.*, 
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'product_id', oi.product_id,
+            'quantity', oi.quantity,
+            'price', oi.price,
+            'product_name', p.name
+          )
+        ) as items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN products p ON oi.product_id = p.id
+      WHERE o.id = :order_id
+      GROUP BY o.id`,
+      {
+        replacements: { order_id: orderId },
+        type: sequelize.QueryTypes.SELECT
+      }
+    );
+
     res.json({
       success: true,
       message: 'Đặt hàng thành công',
-      data: { orderId }
+      data: orderDetails
     });
   } catch (err) {
     await transaction.rollback();

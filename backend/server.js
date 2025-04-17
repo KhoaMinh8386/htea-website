@@ -44,19 +44,15 @@ app.use((req, res, next) => {
 // ===================== 🔥 ROUTES =====================
 const authRoutes = require("./routes/auth");
 const productRoutes = require("./routes/product");
-const ordersRouter = require("./routes/orders");
-const ordersUsersRoutes = require("./routes/ordersUsers.routes");
+const ordersRoutes = require("./routes/orders");
 const userRoutes = require("./routes/user");
-const orderRoutes = require('./routes/order');
 const dashboardRoutes = require('./routes/dashboard');
 
 // 🛒 API Quản lý sản phẩm & đơn hàng
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
-app.use("/api/orders", ordersRouter);
-app.use("/api/orders-users", ordersUsersRoutes);
+app.use("/api/orders", ordersRoutes);
 app.use("/api/users", userRoutes);
-app.use('/api', orderRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 
 // 🔐 API ADMIN (chỉ admin mới vào được)

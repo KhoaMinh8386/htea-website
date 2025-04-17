@@ -29,15 +29,33 @@ export const createOrder = createAsyncThunk(
   async (orderData, { rejectWithValue }) => {
     try {
       console.log('Creating order with data:', orderData);
-      const response = await axiosInstance.post('/orders', orderData);
-      console.log('Create order response:', response.data);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập để đặt hàng');
+      }
+
+      const response = await axiosInstance.post(
+        `${API_URL}/orders`,
+        orderData,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Lỗi khi tạo đơn hàng');
+      }
+
       return response.data;
     } catch (error) {
       console.error('Error creating order:', error);
-      if (error.code === 'ERR_NETWORK') {
-        return rejectWithValue('Không thể kết nối đến server. Vui lòng thử lại sau.');
+      if (error.response?.data?.message) {
+        return rejectWithValue(error.response.data.message);
       }
-      return rejectWithValue(error.response?.data?.message || 'Lỗi khi tạo đơn hàng');
+      return rejectWithValue(error.message || 'Lỗi khi tạo đơn hàng');
     }
   }
 );
@@ -119,12 +137,15 @@ const orderSlice = createSlice({
       })
       .addCase(createOrder.fulfilled, (state, action) => {
         state.loading = false;
-        state.currentOrder = action.payload;
+        state.currentOrder = action.payload.data;
         state.success = true;
+        if (action.payload.data) {
+          state.orders = [...state.orders, action.payload.data];
+        }
       })
       .addCase(createOrder.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.error.message;
         state.success = false;
       })
       // Update Order Status

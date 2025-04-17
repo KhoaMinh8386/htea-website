@@ -108,7 +108,7 @@ const Products = () => {
           >
             <option value="all">Tất cả danh mục</option>
             {categories.map((category) => (
-              <option key={category.id} value={category.id}>
+              <option key={`category-${category.id}-${category.name}`} value={category.id}>
                 {category.name}
               </option>
             ))}

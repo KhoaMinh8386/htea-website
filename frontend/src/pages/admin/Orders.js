@@ -217,6 +217,64 @@ const Orders = () => {
           </tbody>
         </table>
       </div>
+
+      {/* Order Details */}
+      {filteredOrders.map((order) => (
+        <div key={order.id} className="mt-4 p-4 border rounded-lg">
+          <h2 className="text-xl font-bold mb-4">Chi tiết đơn hàng #{order.id}</h2>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <img
+                src={order.image_url || 'https://via.placeholder.com/100x100?text=No+Image'}
+                alt={order.customer_name || 'Order'}
+                className="w-16 h-16 object-cover rounded"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = 'https://via.placeholder.com/100x100?text=No+Image';
+                }}
+              />
+              <div className="ml-4">
+                <p className="font-medium">{order.customer_name || 'Unknown Customer'}</p>
+                <p className="text-sm text-gray-600">
+                  {order.customer_email || 'No email available'}
+                </p>
+              </div>
+            </div>
+            <p className="font-medium">
+              {order.total.toLocaleString('vi-VN')}đ
+            </p>
+          </div>
+          <div className="mt-4">
+            {order.items.map((item) => (
+              <div
+                key={item.id}
+                className="flex justify-between items-center"
+              >
+                <div className="flex items-center">
+                  <img
+                    src={item.image_url || 'https://via.placeholder.com/100x100?text=No+Image'}
+                    alt={item.product_name || 'Product'}
+                    className="w-16 h-16 object-cover rounded"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = 'https://via.placeholder.com/100x100?text=No+Image';
+                    }}
+                  />
+                  <div className="ml-4">
+                    <p className="font-medium">{item.product_name || 'Unknown Product'}</p>
+                    <p className="text-sm text-gray-600">
+                      {item.quantity || 0} x {(item.price || 0).toLocaleString('vi-VN')}đ
+                    </p>
+                  </div>
+                </div>
+                <p className="font-medium">
+                  {((item.price || 0) * (item.quantity || 0)).toLocaleString('vi-VN')}đ
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
