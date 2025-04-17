@@ -56,9 +56,8 @@ cd htea-website
 2. Install backend dependencies
    ```frist
    cd backend; npm install pg@8.14.1 sequelize@6.37.1 --save
-``second
-  cd htea-webstei; npm install
-```bash
+```second 
+cd htea-website; npm install
 cd backend
 npm install
 ```
