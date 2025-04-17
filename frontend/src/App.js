@@ -19,6 +19,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Orders from './pages/Orders';
+import OrderSuccess from './pages/OrderSuccess';
 
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard';
@@ -82,6 +83,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route path="/order-success" element={<OrderSuccess />} />
 
           {/* Admin Routes */}
           <Route

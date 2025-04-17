@@ -8,16 +8,31 @@ router.get("/", auth, async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const user_id = req.user.id; // Lấy user_id từ token
+
     const orders = await sequelize.query(`
-      SELECT o.*, 
-        json_agg(
-          json_build_object(
-            'id', oi.id,
-            'product_id', oi.product_id,
-            'quantity', oi.quantity,
-            'price', oi.price,
-            'product_name', p.name
-          )
+      SELECT 
+        o.id,
+        o.user_id,
+        o.total_amount,
+        o.status,
+        o.shipping_address,
+        o.phone,
+        o.created_at,
+        o.updated_at,
+        o.customer_name,
+        o.customer_email,
+        o.notes,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', oi.id,
+              'product_id', oi.product_id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'product_name', p.name
+            )
+          ) FILTER (WHERE oi.id IS NOT NULL),
+          '[]'::json
         ) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id

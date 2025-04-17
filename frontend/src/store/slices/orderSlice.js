@@ -15,11 +15,31 @@ export const fetchOrders = createAsyncThunk(
   'orders/fetchOrders',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get('/orders');
-      return response.data;
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập để xem đơn hàng');
+      }
+
+      const response = await axiosInstance.get(
+        `${API_URL}/orders`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Lỗi khi lấy danh sách đơn hàng');
+      }
+
+      return response.data.data;
     } catch (error) {
       console.error('Error fetching orders:', error);
-      return rejectWithValue(error.response?.data?.message || 'Lỗi khi lấy danh sách đơn hàng');
+      if (error.response?.data?.message) {
+        return rejectWithValue(error.response.data.message);
+      }
+      return rejectWithValue(error.message || 'Lỗi khi lấy danh sách đơn hàng');
     }
   }
 );
@@ -123,11 +143,13 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload.orders || [];
+        state.orders = action.payload || [];
+        state.error = null;
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+        state.orders = [];
       })
       // Create Order
       .addCase(createOrder.pending, (state) => {
