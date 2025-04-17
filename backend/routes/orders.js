@@ -3,13 +3,11 @@ const router = express.Router();
 const { sequelize } = require("../config/db");
 const { auth } = require('../middleware/auth');
 
-// 🟢 API: Lấy danh sách đơn hàng (Có thể lọc theo user_id)
+// 🟢 API: Lấy danh sách đơn hàng
 router.get("/", auth, async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const user_id = req.user.id; // Lấy user_id từ token
-
-    const orders = await sequelize.query(`
+    let query = `
       SELECT 
         o.id,
         o.user_id,
@@ -37,11 +35,18 @@ router.get("/", auth, async (req, res) => {
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN products p ON oi.product_id = p.id
-      WHERE o.user_id = :user_id
-      GROUP BY o.id
-      ORDER BY o.created_at DESC
-    `, {
-      replacements: { user_id },
+    `;
+
+    // Nếu là admin, lấy tất cả đơn hàng
+    // Nếu là user, chỉ lấy đơn hàng của user đó
+    if (req.user.role === 'admin') {
+      query += ` GROUP BY o.id ORDER BY o.created_at DESC`;
+    } else {
+      query += ` WHERE o.user_id = :user_id GROUP BY o.id ORDER BY o.created_at DESC`;
+    }
+
+    const orders = await sequelize.query(query, {
+      replacements: { user_id: req.user.id },
       type: sequelize.QueryTypes.SELECT,
       transaction
     });
@@ -269,33 +274,48 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// 🟢 API: Cập nhật trạng thái đơn hàng (Admin)
+// 🟢 API: Cập nhật trạng thái đơn hàng
 router.put("/:id/status", auth, async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!status) {
-      return res.status(400).json({
+    // Kiểm tra quyền admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
         success: false,
-        message: 'Vui lòng chọn trạng thái'
+        message: 'Không có quyền cập nhật trạng thái đơn hàng'
       });
     }
 
-    const result = await sequelize.query(
-      'UPDATE orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+    // Kiểm tra trạng thái hợp lệ
+    const validStatuses = ['pending', 'processing', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Trạng thái không hợp lệ'
+      });
+    }
+
+    // Cập nhật trạng thái đơn hàng
+    const [result] = await sequelize.query(
+      `UPDATE orders 
+       SET status = :status, 
+           updated_at = CURRENT_TIMESTAMP 
+       WHERE id = :id 
+       RETURNING *`,
       {
-        replacements: { status, id },
+        replacements: { id, status },
         type: sequelize.QueryTypes.UPDATE,
         transaction
       }
     );
 
-    if (result.length === 0) {
+    if (!result || result.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Đơn hàng không tồn tại'
+        message: 'Không tìm thấy đơn hàng'
       });
     }
 
@@ -306,12 +326,75 @@ router.put("/:id/status", auth, async (req, res) => {
       message: 'Cập nhật trạng thái thành công',
       data: result[0]
     });
-  } catch (error) {
+  } catch (err) {
     await transaction.rollback();
-    console.error("🚨 Lỗi khi cập nhật trạng thái:", error);
+    console.error("🚨 Lỗi khi cập nhật trạng thái:", err.message);
     res.status(500).json({ 
       success: false,
-      message: error.message || 'Lỗi khi cập nhật trạng thái'
+      message: err.message || 'Lỗi khi cập nhật trạng thái đơn hàng'
+    });
+  }
+});
+
+// 🟢 API: Lấy danh sách đơn hàng cho admin
+router.get("/admin", auth, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    // Kiểm tra quyền admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền truy cập'
+      });
+    }
+
+    const orders = await sequelize.query(`
+      SELECT 
+        o.id,
+        o.user_id,
+        o.total_amount,
+        o.status,
+        o.shipping_address,
+        o.phone,
+        o.created_at,
+        o.updated_at,
+        o.customer_name,
+        o.customer_email,
+        o.notes,
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', oi.id,
+              'product_id', oi.product_id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'product_name', p.name
+            )
+          ) FILTER (WHERE oi.id IS NOT NULL),
+          '[]'::json
+        ) as items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN products p ON oi.product_id = p.id
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `, {
+      type: sequelize.QueryTypes.SELECT,
+      transaction
+    });
+    
+    await transaction.commit();
+    
+    res.json({
+      success: true,
+      data: orders
+    });
+  } catch (err) {
+    await transaction.rollback();
+    console.error("🚨 Lỗi khi lấy đơn hàng:", err.message);
+    res.status(500).json({ 
+      success: false,
+      message: err.message || 'Lỗi khi lấy danh sách đơn hàng'
     });
   }
 });

@@ -24,7 +24,7 @@ import OrderSuccess from './pages/OrderSuccess';
 // Admin Pages
 import Dashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/Products';
-import AdminOrders from './pages/admin/Orders';
+import AdminOrders from './pages/admin/AdminOrders';
 import Staff from './pages/admin/Staff';
 import Reports from './pages/admin/Reports';
 import Categories from './pages/admin/Categories';
