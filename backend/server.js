@@ -47,6 +47,7 @@ const productRoutes = require("./routes/product");
 const ordersRoutes = require("./routes/orders");
 const userRoutes = require("./routes/user");
 const dashboardRoutes = require('./routes/dashboard');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 // 🛒 API Quản lý sản phẩm & đơn hàng
 app.use("/api/auth", authRoutes);
@@ -54,6 +55,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", ordersRoutes);
 app.use("/api/users", userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // 🔐 API ADMIN (chỉ admin mới vào được)
 app.use("/api/admin", auth, adminAuth, (req, res) => {

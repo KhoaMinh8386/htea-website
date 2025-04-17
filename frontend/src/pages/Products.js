@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { fetchProducts } from '../store/slices/productSlice';
 import { addToCart } from '../store/slices/cartSlice';
 import { toast } from 'react-toastify';
+import axiosInstance from '../utils/axios';
 
 const Products = () => {
   const dispatch = useDispatch();
@@ -15,6 +16,17 @@ const Products = () => {
 
   useEffect(() => {
     dispatch(fetchProducts());
+    // Fetch categories
+    const fetchCategories = async () => {
+      try {
+        const response = await axiosInstance.get('/categories');
+        setCategories(response.data.data);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        toast.error('Không thể tải danh mục sản phẩm');
+      }
+    };
+    fetchCategories();
   }, [dispatch]);
 
   useEffect(() => {
@@ -22,17 +34,6 @@ const Products = () => {
       toast.error('Không thể tải danh sách sản phẩm: ' + error);
     }
   }, [error]);
-
-  // Extract unique categories from products
-  useEffect(() => {
-    if (products) {
-      const uniqueCategories = [...new Set(products.map(p => ({
-        id: p.category_id,
-        name: p.category_name || `Danh mục ${p.category_id}`
-      })))];
-      setCategories(uniqueCategories);
-    }
-  }, [products]);
 
   const handleAddToCart = (product) => {
     dispatch(addToCart({ ...product, quantity: 1 }));
@@ -108,7 +109,7 @@ const Products = () => {
           >
             <option value="all">Tất cả danh mục</option>
             {categories.map((category) => (
-              <option key={`category-${category.id}-${category.name}`} value={category.id}>
+              <option key={category.id} value={category.id}>
                 {category.name}
               </option>
             ))}
