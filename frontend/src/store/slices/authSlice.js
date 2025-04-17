@@ -10,12 +10,33 @@ export const register = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post('/auth/register', userData);
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      return response.data;
+      const response = await axiosInstance.post('/auth/register', {
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        full_name: userData.full_name,
+        phone: userData.phone,
+        address: userData.address
+      });
+
+      if (response.data.success) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        return response.data;
+      } else {
+        return rejectWithValue(response.data.message || 'Đăng ký thất bại');
+      }
     } catch (error) {
-      return rejectWithValue(error.response.data.message);
+      if (error.response) {
+        // Server trả về lỗi
+        return rejectWithValue(error.response.data.message || error.response.data.error || 'Đăng ký thất bại');
+      } else if (error.request) {
+        // Không nhận được response từ server
+        return rejectWithValue('Không thể kết nối đến máy chủ');
+      } else {
+        // Lỗi khi thiết lập request
+        return rejectWithValue('Có lỗi xảy ra khi đăng ký');
+      }
     }
   }
 );

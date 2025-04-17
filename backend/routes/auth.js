@@ -24,61 +24,38 @@ router.get("/users", async (req, res) => {
     }
 });
 
-// @desc    Register user
+// Validation middleware
+const registerValidation = [
+  body('username')
+    .trim()
+    .isLength({ min: 3 })
+    .withMessage('Tên đăng nhập phải có ít nhất 3 ký tự'),
+  body('email')
+    .isEmail()
+    .withMessage('Email không hợp lệ'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
+  body('full_name')
+    .trim()
+    .notEmpty()
+    .withMessage('Họ tên không được để trống'),
+  body('phone')
+    .optional()
+    .trim()
+    .matches(/^[0-9]{10,11}$/)
+    .withMessage('Số điện thoại không hợp lệ'),
+  body('address')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Địa chỉ không được để trống')
+];
+
 // @route   POST /api/auth/register
+// @desc    Register user
 // @access  Public
-router.post(
-  '/register',
-  [
-    body('username').trim().isLength({ min: 3 }).withMessage('Username must be at least 3 characters long'),
-    body('email').isEmail().withMessage('Please include a valid email'),
-    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
-    body('full_name').optional().trim().notEmpty().withMessage('Full name cannot be empty')
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { username, email, password, full_name } = req.body;
-
-    try {
-      // Check if user exists
-      const userExists = await User.findOne({
-        where: {
-          [sequelize.Op.or]: [
-            { username },
-            { email }
-          ]
-        }
-      });
-
-      if (userExists) {
-        return res.status(400).json({
-          success: false,
-          message: 'User already exists'
-        });
-      }
-
-      // Create user
-      const user = await User.create({
-        username,
-        email,
-        password,
-        full_name
-      });
-
-      sendTokenResponse(user, 201, res);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({
-        success: false,
-        message: 'Server Error'
-      });
-    }
-  }
-);
+router.post('/register', registerValidation, register);
 
 // @desc    Login user
 // @route   POST /api/auth/login

@@ -4,15 +4,19 @@ const pool = require('../config/db');
 const { sendEmail } = require('../utils/email');
 const { User } = require('../models/User');
 const { sequelize } = require('../config/db');
+const { Op } = require('sequelize');
 
+// @desc    Register user
+// @route   POST /api/auth/register
+// @access  Public
 const register = async (req, res) => {
     try {
         const { username, email, password, full_name, phone, address } = req.body;
 
-        // Kiểm tra email và username đã tồn tại
+        // Check if user exists
         const userExists = await User.findOne({
             where: {
-                [sequelize.Op.or]: [
+                [Op.or]: [
                     { username },
                     { email }
                 ]
@@ -22,29 +26,41 @@ const register = async (req, res) => {
         if (userExists) {
             return res.status(400).json({
                 success: false,
-                message: 'User already exists'
+                message: 'Người dùng đã tồn tại'
             });
         }
 
-        // Mã hóa mật khẩu
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Tạo user mới
+        // Create user
         const user = await User.create({
             username,
             email,
-            password: hashedPassword,
+            password,
             full_name,
             phone,
-            address
+            address,
+            role: 'user'
         });
 
-        sendTokenResponse(user, 201, res);
-    } catch (err) {
-        console.error(err);
+        // Create token
+        const token = user.getSignedJwtToken();
+
+        res.status(201).json({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                full_name: user.full_name,
+                role: user.role
+            }
+        });
+    } catch (error) {
+        console.error('Register error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server Error'
+            message: 'Lỗi server',
+            error: error.message
         });
     }
 };
