@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axiosInstance from '../../utils/axios';
 
-const Dashboard = () => {
+const AdminDashboard = () => {
   const [stats, setStats] = useState({
     total_orders: 0,
     total_revenue: 0,
@@ -135,4 +135,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default AdminDashboard; 

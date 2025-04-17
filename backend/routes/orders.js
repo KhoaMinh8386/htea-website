@@ -399,4 +399,196 @@ router.get("/admin", auth, async (req, res) => {
   }
 });
 
+// 🟢 API: Lấy báo cáo doanh thu
+router.get("/revenue", auth, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    // Kiểm tra quyền admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền xem báo cáo doanh thu'
+      });
+    }
+
+    // Lấy tổng doanh thu từ các đơn hàng đã hoàn thành
+    const [revenue] = await sequelize.query(
+      `SELECT 
+        COUNT(*) as total_orders,
+        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COALESCE(AVG(total_amount), 0) as average_order_value
+      FROM orders 
+      WHERE status = 'completed'`,
+      {
+        type: sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+
+    // Lấy doanh thu theo tháng
+    const monthlyRevenue = await sequelize.query(
+      `SELECT 
+        DATE_TRUNC('month', created_at) as month,
+        COUNT(*) as order_count,
+        COALESCE(SUM(total_amount), 0) as revenue
+      FROM orders 
+      WHERE status = 'completed'
+      GROUP BY DATE_TRUNC('month', created_at)
+      ORDER BY month DESC
+      LIMIT 12`,
+      {
+        type: sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      data: {
+        total_orders: parseInt(revenue.total_orders) || 0,
+        total_revenue: parseFloat(revenue.total_revenue) || 0,
+        average_order_value: parseFloat(revenue.average_order_value) || 0,
+        monthly_revenue: monthlyRevenue || []
+      }
+    });
+  } catch (err) {
+    await transaction.rollback();
+    console.error("🚨 Lỗi khi lấy báo cáo doanh thu:", err.message);
+    res.status(500).json({ 
+      success: false,
+      message: err.message || 'Lỗi khi lấy báo cáo doanh thu'
+    });
+  }
+});
+
+// Debug endpoint to check all orders
+router.get("/debug", auth, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền truy cập'
+      });
+    }
+
+    const orders = await sequelize.query(
+      `SELECT id, status, total_amount, created_at 
+       FROM orders 
+       ORDER BY created_at DESC`,
+      {
+        type: sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      data: orders
+    });
+  } catch (err) {
+    await transaction.rollback();
+    console.error("🚨 Lỗi khi lấy danh sách đơn hàng:", err.message);
+    res.status(500).json({ 
+      success: false,
+      message: err.message || 'Lỗi khi lấy danh sách đơn hàng'
+    });
+  }
+});
+
+// Thống kê tổng quan cho admin
+router.get("/stats", auth, async (req, res) => {
+  const transaction = await sequelize.transaction();
+  try {
+    console.log('User requesting stats:', req.user);
+
+    if (req.user.role !== 'admin') {
+      console.log('User is not admin');
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền truy cập'
+      });
+    }
+
+    // Lấy thống kê tổng quan
+    const [overallStats] = await sequelize.query(
+      `SELECT 
+        COUNT(*) as total_orders,
+        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COALESCE(AVG(total_amount), 0) as average_order_value
+      FROM orders 
+      WHERE status = 'completed'`,
+      {
+        type: sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+    console.log('Overall stats:', overallStats);
+
+    // Lấy thống kê hôm nay
+    const [todayStats] = await sequelize.query(
+      `SELECT 
+        COUNT(*) as today_orders,
+        COALESCE(SUM(total_amount), 0) as today_revenue
+      FROM orders 
+      WHERE status = 'completed' 
+      AND DATE(created_at) = CURRENT_DATE`,
+      {
+        type: sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+    console.log('Today stats:', todayStats);
+
+    // Lấy tổng số sản phẩm
+    const [productStats] = await sequelize.query(
+      `SELECT COUNT(*) as total_products FROM products`,
+      {
+        type: sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+    console.log('Product stats:', productStats);
+
+    // Lấy tổng số người dùng
+    const [userStats] = await sequelize.query(
+      `SELECT COUNT(*) as total_users FROM users`,
+      {
+        type: sequelize.QueryTypes.SELECT,
+        transaction
+      }
+    );
+    console.log('User stats:', userStats);
+
+    await transaction.commit();
+
+    const responseData = {
+      total_orders: parseInt(overallStats.total_orders) || 0,
+      total_revenue: parseFloat(overallStats.total_revenue) || 0,
+      average_order_value: parseFloat(overallStats.average_order_value) || 0,
+      today_orders: parseInt(todayStats.today_orders) || 0,
+      today_revenue: parseFloat(todayStats.today_revenue) || 0,
+      total_products: parseInt(productStats.total_products) || 0,
+      total_users: parseInt(userStats.total_users) || 0
+    };
+    console.log('Final response data:', responseData);
+
+    res.json({
+      success: true,
+      data: responseData
+    });
+  } catch (err) {
+    await transaction.rollback();
+    console.error("🚨 Lỗi khi lấy thống kê:", err.message);
+    res.status(500).json({ 
+      success: false,
+      message: err.message || 'Lỗi khi lấy thống kê'
+    });
+  }
+});
+
 module.exports = router;

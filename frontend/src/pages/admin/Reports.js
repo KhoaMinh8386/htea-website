@@ -1,281 +1,167 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchRevenueStats } from '../../store/slices/adminSlice';
-import { toast } from 'react-toastify';
-import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import axiosInstance from '../../utils/axios';
+import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement,
-} from 'chart.js';
-import { Line, Bar, Pie } from 'react-chartjs-2';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-  ArcElement
-);
 
 const Reports = () => {
-  const dispatch = useDispatch();
-  const { stats, loading, error } = useSelector((state) => state.admin);
-  const [dateRange, setDateRange] = useState('day');
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(new Date());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [revenueData, setRevenueData] = useState({
+    total_orders: 0,
+    total_revenue: 0,
+    average_order_value: 0,
+    monthly_revenue: []
+  });
+  const navigate = useNavigate();
+  const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        await dispatch(
-          fetchRevenueStats({
-            startDate: format(startDate, 'yyyy-MM-dd'),
-            endDate: format(endDate, 'yyyy-MM-dd'),
-          })
-        ).unwrap();
-      } catch (error) {
-        toast.error('Không thể tải dữ liệu thống kê: ' + error);
-      }
-    };
-
-    fetchStats();
-  }, [dispatch, startDate, endDate]);
-
-  const handleDateRangeChange = (range) => {
-    setDateRange(range);
-    const now = new Date();
-    switch (range) {
-      case 'day':
-        setStartDate(startOfDay(now));
-        setEndDate(endOfDay(now));
-        break;
-      case 'month':
-        setStartDate(startOfMonth(now));
-        setEndDate(endOfMonth(now));
-        break;
-      case 'year':
-        setStartDate(startOfYear(now));
-        setEndDate(endOfYear(now));
-        break;
-      default:
-        break;
+    if (!user || user.role !== 'admin') {
+      navigate('/login');
+      return;
     }
-  };
+    fetchRevenueData();
+  }, [user, navigate]);
 
-  const revenueData = {
-    labels: stats?.revenueByDay?.map((item) =>
-      format(new Date(item.date), 'dd/MM', { locale: vi })
-    ) || [],
-    datasets: [
-      {
-        label: 'Doanh thu',
-        data: stats?.revenueByDay?.map((item) => item.revenue) || [],
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.5)',
-        tension: 0.1,
-      },
-    ],
-  };
-
-  const orderStatusData = {
-    labels: ['Chờ xử lý', 'Đang xử lý', 'Đã giao hàng', 'Đã nhận hàng', 'Đã hủy'],
-    datasets: [
-      {
-        data: [
-          stats?.orderStatusCounts?.pending || 0,
-          stats?.orderStatusCounts?.processing || 0,
-          stats?.orderStatusCounts?.shipped || 0,
-          stats?.orderStatusCounts?.delivered || 0,
-          stats?.orderStatusCounts?.cancelled || 0,
-        ],
-        backgroundColor: [
-          'rgba(234, 179, 8, 0.5)',
-          'rgba(59, 130, 246, 0.5)',
-          'rgba(168, 85, 247, 0.5)',
-          'rgba(34, 197, 94, 0.5)',
-          'rgba(239, 68, 68, 0.5)',
-        ],
-        borderColor: [
-          'rgb(234, 179, 8)',
-          'rgb(59, 130, 246)',
-          'rgb(168, 85, 247)',
-          'rgb(34, 197, 94)',
-          'rgb(239, 68, 68)',
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const topProductsData = {
-    labels: stats?.topProducts?.map((product) => product.name) || [],
-    datasets: [
-      {
-        label: 'Số lượng bán',
-        data: stats?.topProducts?.map((product) => product.quantity) || [],
-        backgroundColor: 'rgba(34, 197, 94, 0.5)',
-        borderColor: 'rgb(34, 197, 94)',
-        borderWidth: 1,
-      },
-    ],
+  const fetchRevenueData = async () => {
+    try {
+      setLoading(true);
+      const response = await axiosInstance.get('/orders/revenue');
+      if (response.data.success) {
+        setRevenueData(response.data.data);
+      } else {
+        setError(response.data.message || 'Lỗi khi lấy dữ liệu báo cáo');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Lỗi khi lấy dữ liệu báo cáo');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-800"></div>
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-800"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col justify-center items-center p-8">
+        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
+          <div className="text-red-500 mb-4">
+            <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Có lỗi xảy ra</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={fetchRevenueData}
+            className="bg-green-800 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors duration-300 w-full"
+          >
+            Thử lại
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Báo cáo doanh thu</h1>
-        <div className="flex gap-2">
-          <button
-            onClick={() => handleDateRangeChange('day')}
-            className={`px-4 py-2 rounded-lg ${
-              dateRange === 'day'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Hôm nay
-          </button>
-          <button
-            onClick={() => handleDateRangeChange('month')}
-            className={`px-4 py-2 rounded-lg ${
-              dateRange === 'month'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Tháng này
-          </button>
-          <button
-            onClick={() => handleDateRangeChange('year')}
-            className={`px-4 py-2 rounded-lg ${
-              dateRange === 'year'
-                ? 'bg-green-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Năm nay
-          </button>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-800">Báo cáo doanh thu</h1>
+          <p className="text-gray-600 mt-2">Tổng hợp thông tin doanh thu của cửa hàng</p>
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Tổng doanh thu
-          </h3>
-          <p className="text-3xl font-bold text-green-600">
-            {stats?.totalRevenue?.toLocaleString('vi-VN')}đ
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Số đơn hàng
-          </h3>
-          <p className="text-3xl font-bold text-blue-600">
-            {stats?.totalOrders}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Đơn hàng trung bình
-          </h3>
-          <p className="text-3xl font-bold text-purple-600">
-            {stats?.averageOrderValue?.toLocaleString('vi-VN')}đ
-          </p>
-        </div>
-      </div>
+        {/* Thống kê tổng quan */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Tổng đơn hàng</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{revenueData.total_orders}</p>
+              </div>
+              <div className="bg-green-100 p-3 rounded-full">
+                <svg className="w-6 h-6 text-green-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Biểu đồ doanh thu
-          </h3>
-          <Line
-            data={revenueData}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  position: 'top',
-                },
-              },
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    callback: (value) =>
-                      value.toLocaleString('vi-VN') + 'đ',
-                  },
-                },
-              },
-            }}
-          />
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Trạng thái đơn hàng
-          </h3>
-          <Pie
-            data={orderStatusData}
-            options={{
-              responsive: true,
-              plugins: {
-                legend: {
-                  position: 'top',
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Tổng doanh thu</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">
+                  {revenueData.total_revenue.toLocaleString('vi-VN')}đ
+                </p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-full">
+                <svg className="w-6 h-6 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-      {/* Top Products */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Sản phẩm bán chạy
-        </h3>
-        <Bar
-          data={topProductsData}
-          options={{
-            responsive: true,
-            plugins: {
-              legend: {
-                position: 'top',
-              },
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  stepSize: 1,
-                },
-              },
-            },
-          }}
-        />
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Giá trị đơn hàng trung bình</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">
+                  {revenueData.average_order_value.toLocaleString('vi-VN')}đ
+                </p>
+              </div>
+              <div className="bg-purple-100 p-3 rounded-full">
+                <svg className="w-6 h-6 text-purple-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Doanh thu theo tháng */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Doanh thu theo tháng</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tháng</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số đơn hàng</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doanh thu</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {revenueData.monthly_revenue.map((month) => (
+                  <tr key={month.month}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {format(new Date(month.month), 'MM/yyyy', { locale: vi })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{month.order_count}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-green-800">
+                        {parseFloat(month.revenue).toLocaleString('vi-VN')}đ
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
