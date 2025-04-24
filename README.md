@@ -75,17 +75,31 @@ cd ..
 ```
 PORT=5000
 NODE_ENV=development
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=htea_secret_key_2023
+JWT_EXPIRE=30d
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=htea_db
-DB_USER=your_db_user
-DB_PASSWORD=your_db_password
-SMTP_HOST=your_smtp_host
-SMTP_PORT=your_smtp_port
-SMTP_USER=your_smtp_user
-SMTP_PASS=your_smtp_pass
+DB_USER=postgres
+DB_PASSWORD=zzz
+
+# Email Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_gmail_address
+SMTP_PASS=your_app_password
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
 ```
+
+Note: For Gmail SMTP configuration:
+1. Enable "Less secure app access" in your Google Account settings, or
+2. Create an App Password:
+   - Go to Google Account > Security > 2-Step Verification > App passwords
+   - Select "Mail" and your device
+   - Copy the generated 16-character password
+   - Use this password in SMTP_PASS
 
 ### Running the Application
 
