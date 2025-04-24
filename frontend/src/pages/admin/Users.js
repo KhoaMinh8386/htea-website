@@ -136,12 +136,6 @@ const Users = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Quản lý người dùng</h1>
-        <button
-          onClick={() => handleOpenModal()}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-        >
-          Thêm người dùng
-        </button>
       </div>
 
       {/* Search */}
