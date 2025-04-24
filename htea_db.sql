@@ -146,10 +146,12 @@ ALTER SEQUENCE public.orders_id_seq OWNED BY public.orders.id;
 
 CREATE TABLE public.product_categories (
     id integer NOT NULL,
-    name character varying(255) NOT NULL,
+    name character varying(100) NOT NULL,
     description text,
-    created_at timestamp with time zone,
-    updated_at timestamp with time zone
+    created_at timestamp with time zone NOT NULL,
+    updated_at timestamp with time zone NOT NULL,
+    image_url character varying(255),
+    is_active boolean DEFAULT true
 );
 
 
@@ -216,6 +218,45 @@ ALTER SEQUENCE public.products_id_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE public.products_id_seq OWNED BY public.products.id;
+
+
+--
+-- Name: reset_tokens; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.reset_tokens (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    token character varying(255) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    is_used boolean DEFAULT false,
+    "createdAt" timestamp with time zone NOT NULL,
+    "updatedAt" timestamp with time zone NOT NULL
+);
+
+
+ALTER TABLE public.reset_tokens OWNER TO postgres;
+
+--
+-- Name: reset_tokens_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.reset_tokens_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.reset_tokens_id_seq OWNER TO postgres;
+
+--
+-- Name: reset_tokens_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.reset_tokens_id_seq OWNED BY public.reset_tokens.id;
 
 
 --
@@ -368,6 +409,13 @@ ALTER TABLE ONLY public.products ALTER COLUMN id SET DEFAULT nextval('public.pro
 
 
 --
+-- Name: reset_tokens id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens ALTER COLUMN id SET DEFAULT nextval('public.reset_tokens_id_seq'::regclass);
+
+
+--
 -- Name: reviews id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -397,6 +445,7 @@ COPY public."SequelizeMeta" (name) FROM stdin;
 20240413_add_product_review_fields.js
 20240415000000-fix-database-constraints.js
 20240416000000-fix-orders-id-sequence.js
+20240320000000-create-reset-tokens.js
 \.
 
 
@@ -417,6 +466,13 @@ COPY public.order_items (id, order_id, product_id, quantity, price, created_at) 
 12	55	4	1	12000.00	2025-04-17 08:47:02.617713
 13	56	3	1	180000.00	2025-04-17 08:48:32.122445
 14	57	3	1	180000.00	2025-04-17 09:38:37.415977
+15	58	4	1	12000.00	2025-04-17 12:01:59.172074
+16	59	2	1	200000.00	2025-04-17 12:06:24.214843
+17	1	3	1	180000.00	2025-04-24 09:43:32.227746
+18	2	3	1	180000.00	2025-04-24 14:31:00.217716
+19	2	4	1	12000.00	2025-04-24 14:31:00.217716
+20	3	2	1	200000.00	2025-04-24 16:23:42.975369
+21	3	1	1	150000.00	2025-04-24 16:23:42.975369
 \.
 
 
@@ -436,6 +492,11 @@ COPY public.orders (id, user_id, total_amount, status, shipping_address, phone, 
 56	8	180000.00	completed	1557 tỉnh lộ 10	0914318513	2025-04-17 08:48:32.122445	2025-04-17 08:51:04.848697	Khoa Admin	adminkhoa@example.com	\N
 55	8	12000.00	completed	aaa	0914318513	2025-04-17 08:47:02.617713	2025-04-17 08:51:06.873727	Khoa Admin	adminkhoa@example.com	aa
 57	10	180000.00	pending	84 phú thọ	0902493652	2025-04-17 09:38:37.415977	2025-04-17 09:38:37.415977	khoa nè	khoaminhnick2@gmail.com	aaa
+58	8	12000.00	pending	84 phú thọ	0914318513	2025-04-17 12:01:59.172074	2025-04-17 12:01:59.172074	Khoa Admin	adminkhoa@example.com	ít đường
+59	8	200000.00	pending	quận 12	0914318513	2025-04-17 12:06:24.214843	2025-04-17 12:06:24.214843	khoa nè	adminkhoa@example.com	\N
+1	8	180000.00	pending	77 nhat chi mai	0914318513	2025-04-24 09:43:32.227746	2025-04-24 09:43:32.227746	Khoa Admin	khoaminhnick2@gmail.com	hoi da
+2	8	192000.00	completed	84 phú thọ	0914318513	2025-04-24 14:31:00.217716	2025-04-24 15:50:03.443596	huỳnh minh khoa	khoaminhnick2@gmail.com	ít đá
+3	8	350000.00	pending	84 phu tho	0914318513	2025-04-24 16:23:42.975369	2025-04-24 16:23:42.975369	aaa	khoa@gmail.com	\N
 \.
 
 
@@ -443,11 +504,11 @@ COPY public.orders (id, user_id, total_amount, status, shipping_address, phone, 
 -- Data for Name: product_categories; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.product_categories (id, name, description, created_at, updated_at) FROM stdin;
-1	Trà Xanh	Các loại trà xanh cao cấp	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07
-2	Trà Oolong	Các loại trà oolong thơm ngon	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07
-3	Trà Đen	Các loại trà đen đặc trưng	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07
-4	Trà Thảo Mộc	Các loại trà thảo mộc tốt cho sức khỏe	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07
+COPY public.product_categories (id, name, description, created_at, updated_at, image_url, is_active) FROM stdin;
+1	Trà Xanh	Các loại trà xanh cao cấp	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07	\N	t
+2	Trà Oolong	Các loại trà oolong thơm ngon	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07	\N	t
+3	Trà Đen	Các loại trà đen đặc trưng	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07	\N	t
+4	Trà Thảo Mộc	Các loại trà thảo mộc tốt cho sức khỏe	2025-04-13 17:10:36.936+07	2025-04-13 17:10:36.936+07	\N	t
 \.
 
 
@@ -460,6 +521,18 @@ COPY public.products (id, name, description, price, category_id, image_url, crea
 1	Trà Xanh Thái Nguyên	Trà xanh thái nguyên thơm ngon, đậm đà	150000.00	1	https://www.lottemart.vn/media/catalog/product/cache/0x0/8/9/8935137602457.jpg.webp	2025-04-13 17:10:36.986+07	2025-04-13 17:19:05.546545+07	t
 2	Trà Oolong Sữa	Trà oolong sữa thơm ngon, đặc trưng	200000.00	2	https://product.hstatic.net/200000516795/product/artboard_1_522d81b8fbee4779a336fcbb6e44aee3_master.jpg	2025-04-13 17:10:36.986+07	2025-04-13 17:19:19.264232+07	t
 4	Trà Cam	Trà Cam thơm ngon	12000.00	1	https://chocolatefigo.com/uploads/images/tra%CC%80%20tra%CC%81i%20ca%CC%82y%20nhie%CC%A3%CC%82t%20%C4%91o%CC%9B%CC%81i.jpeg	2025-04-17 12:45:58.281+07	2025-04-17 15:46:41.557134+07	t
+\.
+
+
+--
+-- Data for Name: reset_tokens; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.reset_tokens (id, user_id, token, expires_at, is_used, "createdAt", "updatedAt") FROM stdin;
+1	11	bcd9b2afeb6fa8eb2f8965070cba932c531fcfaab4277bc6fa085ccb705ad377	2025-04-25 00:23:30.089+07	f	2025-04-24 23:53:30.09+07	2025-04-24 23:53:30.09+07
+2	12	ede4a583507e520e366a7cb592b1681c5fef039c41286c93e6295120e491be9c	2025-04-25 00:26:56.549+07	t	2025-04-24 23:56:56.549+07	2025-04-25 00:03:07.039+07
+3	12	e1064734cfacb37890995d5e94b7cc84d490a2032810d9a1a48b57352064f780	2025-04-25 00:34:07.494+07	t	2025-04-25 00:04:07.494+07	2025-04-25 00:04:35.408+07
+4	12	6e2c19cefa4c16cc4e7ab2cfec889d2e0d8694c02ba7febf008f3b86d5569fc0	2025-04-25 00:35:36.398+07	t	2025-04-25 00:05:36.398+07	2025-04-25 00:06:02.869+07
 \.
 
 
@@ -485,10 +558,12 @@ COPY public.user_sessions (id, user_id, token, expires_at, created_at) FROM stdi
 
 COPY public.users (id, username, email, password, role, phone, address, created_at, updated_at, is_active, last_login, avatar_url, full_name) FROM stdin;
 1	admin	admin@example.com	$2b$10$b1RupzapSjRM2SVyv535KOqzBu2eqdy2ZkaEvVegu7QnyaZQEuuJy	admin	\N	\N	2025-04-03 20:40:07.898619+07	2025-04-04 03:40:07.898619+07	t	\N	\N	\N
-2	khoa	khoa@gmail.com	123456789	admin	\N	\N	2025-04-09 20:56:53.024791+07	2025-04-10 03:56:53.024791+07	t	\N	\N	\N
-8	adminkhoa	adminkhoa@example.com	$2b$10$CbV0HxE.uiQKsSgzf6fSUeUErO1LRf8XnLLDlSB4fMj9DGFpx3ffG	admin	\N	\N	2025-04-10 15:56:24.675738+07	2025-04-17 13:24:29.144402+07	t	2025-04-17 13:24:29.141+07	\N	\N
 9	testuser	test@example.com	$2b$10$4ewOcY/.lgtJI9sjWdkDPOR1bvTvV9ZVjY91UfOx5xfGtIeRc4cXC	user	0123456789	123 Test Street	2025-04-17 16:34:28.839+07	2025-04-17 16:34:28.839+07	t	\N	\N	Test User
 10	khoaminh	khoaminhnick2@gmail.com	$2b$10$l5FGmRQdnNlzxvz/5WOboeL4seOSsIxeotwX7lPl46Q/BN06LH.le	user	0902493652	84 phu tho	2025-04-17 16:34:41.978+07	2025-04-17 16:34:41.978+07	t	\N	\N	Huynh Minh Khoa
+11	khoaminhnick3@gmail.com	khoaminhnick3@gmail.com	$2b$10$uguBPJcYOc/p/0VzZQPRGOMPKHRSnz0VFGYme3da1AdJcy3/jIwqS	user	0914318513	84 phu tho	2025-04-24 12:58:39.98+07	2025-04-24 12:58:39.98+07	t	\N	\N	huynh minh khoa
+2	khoa	khoa@gmail.com	123456789	admin	\N	\N	2025-04-09 20:56:53.024791+07	2025-04-24 23:00:22.696841+07	t	\N	\N	testtt
+8	adminkhoa	adminkhoa@example.com	$2b$10$CbV0HxE.uiQKsSgzf6fSUeUErO1LRf8XnLLDlSB4fMj9DGFpx3ffG	admin	0914318515	84 phu tho	2025-04-10 15:56:24.675738+07	2025-04-24 23:49:35.953191+07	t	2025-04-24 23:49:35.948+07	\N	Huynh Minh Khoa
+12	test genshjn	genshjnnek@gmail.com	$2b$10$DWLvJau6gs9pb8QSV0QAYu65CNg2m/hZt4IHdjA2qxcaZtcgEWiGS	user	0902486523	84 phu tho	2025-04-24 23:56:42.476+07	2025-04-25 00:06:16.188713+07	t	2025-04-25 00:06:16.187+07	\N	genshin hehe
 \.
 
 
@@ -496,14 +571,14 @@ COPY public.users (id, username, email, password, role, phone, address, created_
 -- Name: order_items_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.order_items_id_seq', 14, true);
+SELECT pg_catalog.setval('public.order_items_id_seq', 21, true);
 
 
 --
 -- Name: orders_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.orders_id_seq', 57, true);
+SELECT pg_catalog.setval('public.orders_id_seq', 3, true);
 
 
 --
@@ -518,6 +593,13 @@ SELECT pg_catalog.setval('public.product_categories_id_seq', 4, true);
 --
 
 SELECT pg_catalog.setval('public.products_id_seq', 3, true);
+
+
+--
+-- Name: reset_tokens_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.reset_tokens_id_seq', 4, true);
 
 
 --
@@ -538,7 +620,7 @@ SELECT pg_catalog.setval('public.user_sessions_id_seq', 1, false);
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.users_id_seq', 10, true);
+SELECT pg_catalog.setval('public.users_id_seq', 12, true);
 
 
 --
@@ -4742,11 +4824,99 @@ ALTER TABLE ONLY public.product_categories
 
 
 --
+-- Name: product_categories product_categories_name_key569; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key569 UNIQUE (name);
+
+
+--
 -- Name: product_categories product_categories_name_key57; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key57 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key570; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key570 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key571; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key571 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key572; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key572 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key573; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key573 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key574; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key574 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key575; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key575 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key576; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key576 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key577; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key577 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key578; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key578 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key579; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key579 UNIQUE (name);
 
 
 --
@@ -4758,11 +4928,171 @@ ALTER TABLE ONLY public.product_categories
 
 
 --
+-- Name: product_categories product_categories_name_key580; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key580 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key581; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key581 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key582; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key582 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key583; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key583 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key584; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key584 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key585; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key585 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key586; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key586 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key587; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key587 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key588; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key588 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key589; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key589 UNIQUE (name);
+
+
+--
 -- Name: product_categories product_categories_name_key59; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key59 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key590; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key590 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key591; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key591 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key592; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key592 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key593; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key593 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key594; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key594 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key595; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key595 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key596; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key596 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key597; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key597 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key598; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key598 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key599; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key599 UNIQUE (name);
 
 
 --
@@ -4782,11 +5112,171 @@ ALTER TABLE ONLY public.product_categories
 
 
 --
+-- Name: product_categories product_categories_name_key600; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key600 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key601; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key601 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key602; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key602 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key603; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key603 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key604; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key604 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key605; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key605 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key606; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key606 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key607; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key607 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key608; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key608 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key609; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key609 UNIQUE (name);
+
+
+--
 -- Name: product_categories product_categories_name_key61; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key61 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key610; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key610 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key611; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key611 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key612; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key612 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key613; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key613 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key614; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key614 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key615; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key615 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key616; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key616 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key617; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key617 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key618; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key618 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key619; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key619 UNIQUE (name);
 
 
 --
@@ -4798,11 +5288,171 @@ ALTER TABLE ONLY public.product_categories
 
 
 --
+-- Name: product_categories product_categories_name_key620; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key620 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key621; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key621 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key622; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key622 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key623; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key623 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key624; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key624 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key625; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key625 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key626; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key626 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key627; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key627 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key628; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key628 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key629; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key629 UNIQUE (name);
+
+
+--
 -- Name: product_categories product_categories_name_key63; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key63 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key630; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key630 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key631; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key631 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key632; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key632 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key633; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key633 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key634; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key634 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key635; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key635 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key636; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key636 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key637; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key637 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key638; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key638 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key639; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key639 UNIQUE (name);
 
 
 --
@@ -4814,11 +5464,171 @@ ALTER TABLE ONLY public.product_categories
 
 
 --
+-- Name: product_categories product_categories_name_key640; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key640 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key641; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key641 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key642; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key642 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key643; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key643 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key644; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key644 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key645; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key645 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key646; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key646 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key647; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key647 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key648; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key648 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key649; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key649 UNIQUE (name);
+
+
+--
 -- Name: product_categories product_categories_name_key65; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key65 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key650; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key650 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key651; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key651 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key652; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key652 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key653; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key653 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key654; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key654 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key655; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key655 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key656; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key656 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key657; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key657 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key658; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key658 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key659; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key659 UNIQUE (name);
 
 
 --
@@ -4830,11 +5640,171 @@ ALTER TABLE ONLY public.product_categories
 
 
 --
+-- Name: product_categories product_categories_name_key660; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key660 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key661; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key661 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key662; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key662 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key663; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key663 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key664; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key664 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key665; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key665 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key666; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key666 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key667; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key667 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key668; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key668 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key669; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key669 UNIQUE (name);
+
+
+--
 -- Name: product_categories product_categories_name_key67; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key67 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key670; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key670 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key671; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key671 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key672; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key672 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key673; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key673 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key674; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key674 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key675; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key675 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key676; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key676 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key677; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key677 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key678; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key678 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key679; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key679 UNIQUE (name);
 
 
 --
@@ -4846,11 +5816,171 @@ ALTER TABLE ONLY public.product_categories
 
 
 --
+-- Name: product_categories product_categories_name_key680; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key680 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key681; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key681 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key682; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key682 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key683; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key683 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key684; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key684 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key685; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key685 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key686; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key686 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key687; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key687 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key688; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key688 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key689; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key689 UNIQUE (name);
+
+
+--
 -- Name: product_categories product_categories_name_key69; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key69 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key690; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key690 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key691; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key691 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key692; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key692 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key693; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key693 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key694; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key694 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key695; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key695 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key696; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key696 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key697; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key697 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key698; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key698 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key699; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key699 UNIQUE (name);
 
 
 --
@@ -4867,6 +5997,14 @@ ALTER TABLE ONLY public.product_categories
 
 ALTER TABLE ONLY public.product_categories
     ADD CONSTRAINT product_categories_name_key70 UNIQUE (name);
+
+
+--
+-- Name: product_categories product_categories_name_key700; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.product_categories
+    ADD CONSTRAINT product_categories_name_key700 UNIQUE (name);
 
 
 --
@@ -8622,6 +9760,70 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: products products_name_key492; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key492 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key493; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key493 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key494; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key494 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key495; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key495 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key496; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key496 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key497; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key497 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key498; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key498 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key499; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key499 UNIQUE (name);
+
+
+--
 -- Name: products products_name_key5; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -8638,11 +9840,171 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: products products_name_key500; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key500 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key501; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key501 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key502; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key502 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key503; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key503 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key504; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key504 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key505; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key505 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key506; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key506 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key507; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key507 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key508; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key508 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key509; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key509 UNIQUE (name);
+
+
+--
 -- Name: products products_name_key51; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_name_key51 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key510; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key510 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key511; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key511 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key512; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key512 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key513; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key513 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key514; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key514 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key515; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key515 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key516; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key516 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key517; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key517 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key518; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key518 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key519; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key519 UNIQUE (name);
 
 
 --
@@ -8654,11 +10016,171 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: products products_name_key520; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key520 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key521; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key521 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key522; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key522 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key523; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key523 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key524; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key524 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key525; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key525 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key526; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key526 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key527; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key527 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key528; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key528 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key529; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key529 UNIQUE (name);
+
+
+--
 -- Name: products products_name_key53; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_name_key53 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key530; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key530 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key531; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key531 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key532; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key532 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key533; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key533 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key534; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key534 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key535; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key535 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key536; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key536 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key537; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key537 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key538; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key538 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key539; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key539 UNIQUE (name);
 
 
 --
@@ -8670,11 +10192,171 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: products products_name_key540; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key540 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key541; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key541 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key542; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key542 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key543; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key543 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key544; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key544 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key545; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key545 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key546; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key546 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key547; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key547 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key548; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key548 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key549; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key549 UNIQUE (name);
+
+
+--
 -- Name: products products_name_key55; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_name_key55 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key550; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key550 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key551; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key551 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key552; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key552 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key553; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key553 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key554; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key554 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key555; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key555 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key556; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key556 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key557; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key557 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key558; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key558 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key559; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key559 UNIQUE (name);
 
 
 --
@@ -8686,11 +10368,171 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: products products_name_key560; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key560 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key561; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key561 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key562; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key562 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key563; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key563 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key564; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key564 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key565; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key565 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key566; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key566 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key567; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key567 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key568; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key568 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key569; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key569 UNIQUE (name);
+
+
+--
 -- Name: products products_name_key57; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_name_key57 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key570; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key570 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key571; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key571 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key572; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key572 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key573; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key573 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key574; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key574 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key575; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key575 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key576; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key576 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key577; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key577 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key578; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key578 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key579; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key579 UNIQUE (name);
 
 
 --
@@ -8702,11 +10544,171 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: products products_name_key580; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key580 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key581; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key581 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key582; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key582 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key583; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key583 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key584; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key584 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key585; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key585 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key586; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key586 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key587; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key587 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key588; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key588 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key589; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key589 UNIQUE (name);
+
+
+--
 -- Name: products products_name_key59; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_name_key59 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key590; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key590 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key591; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key591 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key592; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key592 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key593; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key593 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key594; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key594 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key595; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key595 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key596; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key596 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key597; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key597 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key598; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key598 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key599; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key599 UNIQUE (name);
 
 
 --
@@ -8726,11 +10728,171 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: products products_name_key600; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key600 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key601; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key601 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key602; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key602 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key603; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key603 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key604; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key604 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key605; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key605 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key606; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key606 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key607; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key607 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key608; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key608 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key609; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key609 UNIQUE (name);
+
+
+--
 -- Name: products products_name_key61; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_name_key61 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key610; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key610 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key611; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key611 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key612; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key612 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key613; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key613 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key614; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key614 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key615; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key615 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key616; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key616 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key617; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key617 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key618; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key618 UNIQUE (name);
+
+
+--
+-- Name: products products_name_key619; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.products
+    ADD CONSTRAINT products_name_key619 UNIQUE (name);
 
 
 --
@@ -9067,6 +11229,150 @@ ALTER TABLE ONLY public.products
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: reset_tokens reset_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key1; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key1 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key10; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key10 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key11; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key11 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key12; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key12 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key13; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key13 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key14; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key14 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key15; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key15 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key16; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key16 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key2; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key2 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key3; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key3 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key4; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key4 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key5; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key5 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key6; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key6 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key7; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key7 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key8; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key8 UNIQUE (token);
+
+
+--
+-- Name: reset_tokens reset_tokens_token_key9; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_token_key9 UNIQUE (token);
 
 
 --
@@ -13462,6 +15768,78 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key591; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key591 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key592; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key592 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key593; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key593 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key594; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key594 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key595; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key595 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key596; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key596 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key597; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key597 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key598; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key598 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key599; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key599 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key6; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -13478,11 +15856,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key600; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key600 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key601; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key601 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key602; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key602 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key603; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key603 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key604; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key604 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key605; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key605 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key606; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key606 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key607; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key607 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key608; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key608 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key609; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key609 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key61; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key61 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key610; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key610 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key611; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key611 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key612; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key612 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key613; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key613 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key614; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key614 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key615; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key615 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key616; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key616 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key617; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key617 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key618; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key618 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key619; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key619 UNIQUE (email);
 
 
 --
@@ -13494,11 +16032,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key620; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key620 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key621; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key621 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key622; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key622 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key623; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key623 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key624; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key624 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key625; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key625 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key626; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key626 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key627; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key627 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key628; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key628 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key629; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key629 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key63; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key63 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key630; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key630 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key631; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key631 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key632; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key632 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key633; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key633 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key634; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key634 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key635; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key635 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key636; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key636 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key637; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key637 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key638; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key638 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key639; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key639 UNIQUE (email);
 
 
 --
@@ -13510,11 +16208,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key640; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key640 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key641; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key641 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key642; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key642 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key643; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key643 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key644; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key644 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key645; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key645 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key646; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key646 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key647; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key647 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key648; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key648 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key649; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key649 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key65; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key65 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key650; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key650 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key651; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key651 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key652; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key652 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key653; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key653 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key654; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key654 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key655; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key655 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key656; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key656 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key657; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key657 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key658; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key658 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key659; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key659 UNIQUE (email);
 
 
 --
@@ -13526,11 +16384,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key660; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key660 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key661; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key661 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key662; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key662 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key663; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key663 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key664; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key664 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key665; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key665 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key666; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key666 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key667; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key667 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key668; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key668 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key669; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key669 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key67; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key67 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key670; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key670 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key671; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key671 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key672; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key672 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key673; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key673 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key674; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key674 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key675; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key675 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key676; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key676 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key677; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key677 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key678; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key678 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key679; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key679 UNIQUE (email);
 
 
 --
@@ -13542,11 +16560,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key680; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key680 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key681; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key681 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key682; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key682 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key683; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key683 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key684; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key684 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key685; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key685 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key686; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key686 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key687; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key687 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key688; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key688 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key689; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key689 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key69; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key69 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key690; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key690 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key691; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key691 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key692; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key692 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key693; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key693 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key694; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key694 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key695; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key695 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key696; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key696 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key697; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key697 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key698; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key698 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key699; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key699 UNIQUE (email);
 
 
 --
@@ -13566,6 +16744,86 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key700; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key700 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key701; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key701 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key702; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key702 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key703; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key703 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key704; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key704 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key705; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key705 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key706; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key706 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key707; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key707 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key708; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key708 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key709; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key709 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key71; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -13574,11 +16832,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_email_key710; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key710 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key711; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key711 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key712; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key712 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key713; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key713 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key714; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key714 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key715; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key715 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key716; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key716 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key717; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key717 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key718; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key718 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key719; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key719 UNIQUE (email);
+
+
+--
 -- Name: users users_email_key72; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_email_key72 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key720; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key720 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key721; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key721 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key722; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key722 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key723; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key723 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key724; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key724 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key725; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key725 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key726; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key726 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key727; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key727 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key728; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key728 UNIQUE (email);
+
+
+--
+-- Name: users users_email_key729; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key729 UNIQUE (email);
 
 
 --
@@ -18206,6 +21624,70 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key592; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key592 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key593; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key593 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key594; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key594 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key595; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key595 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key596; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key596 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key597; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key597 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key598; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key598 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key599; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key599 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key6; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -18222,11 +21704,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key600; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key600 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key601; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key601 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key602; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key602 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key603; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key603 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key604; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key604 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key605; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key605 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key606; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key606 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key607; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key607 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key608; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key608 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key609; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key609 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key61; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_username_key61 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key610; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key610 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key611; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key611 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key612; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key612 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key613; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key613 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key614; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key614 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key615; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key615 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key616; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key616 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key617; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key617 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key618; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key618 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key619; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key619 UNIQUE (username);
 
 
 --
@@ -18238,11 +21880,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key620; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key620 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key621; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key621 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key622; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key622 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key623; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key623 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key624; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key624 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key625; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key625 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key626; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key626 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key627; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key627 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key628; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key628 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key629; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key629 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key63; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_username_key63 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key630; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key630 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key631; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key631 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key632; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key632 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key633; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key633 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key634; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key634 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key635; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key635 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key636; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key636 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key637; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key637 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key638; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key638 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key639; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key639 UNIQUE (username);
 
 
 --
@@ -18254,11 +22056,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key640; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key640 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key641; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key641 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key642; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key642 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key643; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key643 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key644; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key644 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key645; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key645 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key646; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key646 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key647; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key647 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key648; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key648 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key649; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key649 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key65; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_username_key65 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key650; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key650 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key651; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key651 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key652; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key652 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key653; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key653 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key654; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key654 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key655; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key655 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key656; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key656 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key657; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key657 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key658; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key658 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key659; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key659 UNIQUE (username);
 
 
 --
@@ -18270,11 +22232,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key660; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key660 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key661; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key661 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key662; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key662 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key663; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key663 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key664; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key664 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key665; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key665 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key666; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key666 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key667; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key667 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key668; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key668 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key669; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key669 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key67; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_username_key67 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key670; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key670 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key671; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key671 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key672; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key672 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key673; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key673 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key674; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key674 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key675; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key675 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key676; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key676 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key677; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key677 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key678; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key678 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key679; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key679 UNIQUE (username);
 
 
 --
@@ -18286,11 +22408,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key680; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key680 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key681; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key681 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key682; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key682 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key683; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key683 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key684; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key684 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key685; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key685 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key686; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key686 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key687; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key687 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key688; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key688 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key689; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key689 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key69; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_username_key69 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key690; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key690 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key691; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key691 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key692; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key692 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key693; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key693 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key694; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key694 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key695; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key695 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key696; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key696 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key697; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key697 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key698; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key698 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key699; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key699 UNIQUE (username);
 
 
 --
@@ -18310,11 +22592,171 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key700; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key700 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key701; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key701 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key702; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key702 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key703; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key703 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key704; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key704 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key705; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key705 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key706; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key706 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key707; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key707 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key708; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key708 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key709; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key709 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key71; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_username_key71 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key710; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key710 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key711; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key711 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key712; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key712 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key713; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key713 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key714; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key714 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key715; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key715 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key716; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key716 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key717; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key717 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key718; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key718 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key719; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key719 UNIQUE (username);
 
 
 --
@@ -18326,11 +22768,139 @@ ALTER TABLE ONLY public.users
 
 
 --
+-- Name: users users_username_key720; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key720 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key721; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key721 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key722; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key722 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key723; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key723 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key724; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key724 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key725; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key725 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key726; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key726 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key727; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key727 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key728; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key728 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key729; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key729 UNIQUE (username);
+
+
+--
 -- Name: users users_username_key73; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_username_key73 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key730; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key730 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key731; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key731 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key732; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key732 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key733; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key733 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key734; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key734 UNIQUE (username);
+
+
+--
+-- Name: users users_username_key735; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key735 UNIQUE (username);
 
 
 --
@@ -18600,6 +23170,13 @@ CREATE INDEX idx_user_sessions_user ON public.user_sessions USING btree (user_id
 
 
 --
+-- Name: reset_tokens_token; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX reset_tokens_token ON public.reset_tokens USING btree (token);
+
+
+--
 -- Name: reviews_product_id; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -18708,6 +23285,14 @@ ALTER TABLE ONLY public.orders
 
 ALTER TABLE ONLY public.products
     ADD CONSTRAINT products_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.product_categories(id) ON UPDATE CASCADE;
+
+
+--
+-- Name: reset_tokens reset_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.reset_tokens
+    ADD CONSTRAINT reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id);
 
 
 --

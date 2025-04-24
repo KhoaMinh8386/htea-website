@@ -137,7 +137,46 @@ router.get('/me', auth, async (req, res) => {
 // @access  Private
 router.get('/logout', auth, logout);
 
+// @desc    Forgot password
+// @route   POST /api/auth/forgot-password
+// @access  Public
+router.post(
+  '/forgot-password',
+  [
+    body('email')
+      .isEmail()
+      .withMessage('Vui lòng nhập email hợp lệ')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    
+    await forgotPassword(req, res);
+  }
+);
 
+// @desc    Reset password
+// @route   POST /api/auth/reset-password
+// @access  Public
+router.post(
+    '/reset-password',
+    [
+        body('token').notEmpty().withMessage('Token là bắt buộc'),
+        body('password')
+            .isLength({ min: 6 })
+            .withMessage('Mật khẩu phải có ít nhất 6 ký tự')
+    ],
+    async (req, res) => {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+        
+        await resetPassword(req, res);
+    }
+);
 
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
