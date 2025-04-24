@@ -49,7 +49,7 @@ A full-stack e-commerce website for selling tea products, built with Node.js, Ex
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/htea-website.git
+git clone https://github.com/KhoaMinh8386/htea-website.git
 cd htea-website
 ```
 
