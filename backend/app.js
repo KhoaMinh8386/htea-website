@@ -8,6 +8,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const profileRoutes = require('./routes/profile');
+const userRoutes = require('./routes/user');
 const { errorHandler } = require('./middleware/error');
 
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/users', userRoutes);
 
 // Error handler
 app.use(errorHandler);

@@ -19,10 +19,17 @@ export const fetchUsers = createAsyncThunk(
   'admin/fetchUsers',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get('/users?role=staff,admin');
-      return response.data;
+      const response = await axiosInstance.get('/users');
+      console.log('Users response:', response.data);
+      
+      if (!response.data || !response.data.success || !Array.isArray(response.data.data?.users)) {
+        return rejectWithValue('Dữ liệu người dùng không hợp lệ');
+      }
+
+      return response.data.data.users;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      console.error('Error fetching users:', error);
+      return rejectWithValue(error.response?.data?.message || 'Lỗi khi tải danh sách người dùng');
     }
   }
 );
@@ -35,7 +42,8 @@ export const createUser = createAsyncThunk(
       const response = await axiosInstance.post('/users', userData);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      console.error('Error creating user:', error);
+      return rejectWithValue(error.response?.data?.message || 'Lỗi khi tạo người dùng');
     }
   }
 );
@@ -43,12 +51,25 @@ export const createUser = createAsyncThunk(
 // Update user
 export const updateUser = createAsyncThunk(
   'admin/updateUser',
-  async ({ id, ...userData }, { rejectWithValue }) => {
+  async (userData, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.put(`/users/${id}`, userData);
-      return response.data;
+      console.log('Updating user with data:', userData);
+      const response = await axiosInstance.put(`/users/${userData.id}`, {
+        full_name: userData.full_name,
+        email: userData.email,
+        role: userData.role,
+        ...(userData.password && { password: userData.password })
+      });
+      console.log('Update response:', response.data);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Cập nhật thất bại');
+      }
+
+      return response.data.user;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      console.error('Error updating user:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Không thể cập nhật người dùng');
     }
   }
 );
@@ -61,7 +82,8 @@ export const deleteUser = createAsyncThunk(
       await axiosInstance.delete(`/users/${userId}`);
       return userId;
     } catch (error) {
-      return rejectWithValue(error.response.data);
+      console.error('Error deleting user:', error);
+      return rejectWithValue(error.response?.data?.message || 'Lỗi khi xóa người dùng');
     }
   }
 );
@@ -106,11 +128,12 @@ const adminSlice = createSlice({
       })
       .addCase(fetchUsers.fulfilled, (state, action) => {
         state.loading = false;
-        state.users = action.payload.users;
+        state.users = action.payload || [];
       })
       .addCase(fetchUsers.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to fetch users';
+        state.error = action.payload;
+        state.users = [];
       })
       // Create User
       .addCase(createUser.pending, (state) => {
@@ -119,11 +142,13 @@ const adminSlice = createSlice({
       })
       .addCase(createUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.users.push(action.payload);
+        if (action.payload) {
+          state.users.push(action.payload);
+        }
       })
       .addCase(createUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to create user';
+        state.error = action.payload;
       })
       // Update User
       .addCase(updateUser.pending, (state) => {
@@ -132,14 +157,16 @@ const adminSlice = createSlice({
       })
       .addCase(updateUser.fulfilled, (state, action) => {
         state.loading = false;
-        const index = state.users.findIndex(user => user.id === action.payload.id);
-        if (index !== -1) {
-          state.users[index] = action.payload;
+        if (action.payload) {
+          const index = state.users.findIndex(user => user.id === action.payload.id);
+          if (index !== -1) {
+            state.users[index] = action.payload;
+          }
         }
       })
       .addCase(updateUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to update user';
+        state.error = action.payload;
       })
       // Delete User
       .addCase(deleteUser.pending, (state) => {
@@ -152,7 +179,7 @@ const adminSlice = createSlice({
       })
       .addCase(deleteUser.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload?.message || 'Failed to delete user';
+        state.error = action.payload;
       })
       // Fetch Dashboard Stats
       .addCase(fetchStats.pending, (state) => {

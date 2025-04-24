@@ -1,6 +1,8 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../db"); // ✅ Kết nối database
+const { User } = require('../models/User');
+const { Op } = require('sequelize');
 require("dotenv").config(); // ✅ Sử dụng biến môi trường
 const pool = require('../config/db');
 
@@ -47,6 +49,7 @@ const loginUser = async (req, res) => {
 // Lấy danh sách người dùng (có phân trang và lọc)
 const getUsers = async (req, res) => {
     try {
+        console.log('Getting users...');
         const { 
             role, 
             search, 
@@ -56,56 +59,48 @@ const getUsers = async (req, res) => {
         } = req.query;
         const offset = (page - 1) * limit;
 
-        let query = `
-            SELECT id, username, email, role, full_name, phone, 
-                   created_at, last_login, is_active
-            FROM users
-            WHERE 1=1
-        `;
-        const params = [];
-
-        if (role) {
-            query += ` AND role = $${params.length + 1}`;
-            params.push(role);
-        }
-
+        // Tạo điều kiện tìm kiếm
+        const where = {};
+        if (role) where.role = role;
+        if (is_active !== undefined) where.is_active = is_active === 'true';
         if (search) {
-            query += ` AND (username ILIKE $${params.length + 1} 
-                         OR email ILIKE $${params.length + 1}
-                         OR full_name ILIKE $${params.length + 1})`;
-            params.push(`%${search}%`);
+            where[Op.or] = [
+                { username: { [Op.iLike]: `%${search}%` } },
+                { email: { [Op.iLike]: `%${search}%` } },
+                { full_name: { [Op.iLike]: `%${search}%` } }
+            ];
         }
 
-        if (is_active !== undefined) {
-            query += ` AND is_active = $${params.length + 1}`;
-            params.push(is_active === 'true');
-        }
+        // Lấy danh sách người dùng
+        const { count, rows } = await User.findAndCountAll({
+            where,
+            attributes: ['id', 'username', 'email', 'role', 'full_name', 'phone', 'created_at', 'last_login', 'is_active'],
+            order: [['created_at', 'DESC']],
+            limit: parseInt(limit),
+            offset: parseInt(offset)
+        });
 
-        // Đếm tổng số người dùng
-        const countQuery = query.replace(
-            'SELECT id, username, email, role, full_name, phone, created_at, last_login, is_active',
-            'SELECT COUNT(*)'
-        );
-        const countResult = await pool.query(countQuery, params);
-        const total = parseInt(countResult.rows[0].count);
-
-        // Lấy danh sách người dùng có phân trang
-        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(limit, offset);
-
-        const result = await pool.query(query, params);
+        console.log('Users found:', rows.length);
 
         res.json({
-            users: result.rows,
-            pagination: {
-                total,
-                page: parseInt(page),
-                limit: parseInt(limit),
-                totalPages: Math.ceil(total / limit)
+            success: true,
+            data: {
+                users: rows,
+                pagination: {
+                    total: count,
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    totalPages: Math.ceil(count / limit)
+                }
             }
         });
     } catch (error) {
-        res.status(500).json({ message: 'Lỗi server' });
+        console.error('Error in getUsers:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Lỗi server',
+            error: error.message 
+        });
     }
 };
 
@@ -147,79 +142,86 @@ const getUserById = async (req, res) => {
 
 // Cập nhật thông tin người dùng (chỉ admin)
 const updateUser = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { 
-            username, 
-            email, 
-            role, 
-            full_name, 
-            phone, 
-            address, 
-            is_active 
-        } = req.body;
+  try {
+    console.log('Update user request:', req.body);
+    const { id } = req.params;
+    const { full_name, email, password, role } = req.body;
 
-        // Kiểm tra người dùng tồn tại
-        const oldUser = await pool.query(
-            'SELECT * FROM users WHERE id = $1',
-            [id]
-        );
-
-        if (!oldUser.rows[0]) {
-            return res.status(404).json({ message: 'Không tìm thấy người dùng' });
-        }
-
-        // Kiểm tra username và email không trùng
-        if (username || email) {
-            const userExists = await pool.query(
-                `SELECT * FROM users 
-                 WHERE (username = $1 OR email = $2) AND id != $3`,
-                [username || oldUser.rows[0].username, email || oldUser.rows[0].email, id]
-            );
-
-            if (userExists.rows[0]) {
-                return res.status(400).json({ 
-                    message: 'Username hoặc email đã tồn tại' 
-                });
-            }
-        }
-
-        // Cập nhật thông tin
-        const result = await pool.query(
-            `UPDATE users 
-             SET username = COALESCE($1, username),
-                 email = COALESCE($2, email),
-                 role = COALESCE($3, role),
-                 full_name = COALESCE($4, full_name),
-                 phone = COALESCE($5, phone),
-                 address = COALESCE($6, address),
-                 is_active = COALESCE($7, is_active)
-             WHERE id = $8
-             RETURNING id, username, email, role, full_name, phone, address, is_active`,
-            [username, email, role, full_name, phone, address, is_active, id]
-        );
-
-        // Ghi log
-        await pool.query(
-            `INSERT INTO audit_logs (user_id, action, table_name, record_id, old_values, new_values)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [
-                req.user.id,
-                'UPDATE',
-                'users',
-                id,
-                JSON.stringify(oldUser.rows[0]),
-                JSON.stringify(result.rows[0])
-            ]
-        );
-
-        res.json({
-            message: 'Cập nhật thông tin người dùng thành công',
-            user: result.rows[0]
-        });
-    } catch (error) {
-        res.status(500).json({ message: 'Lỗi server' });
+    // Validate input
+    if (!full_name || !email || !role) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng cung cấp đầy đủ thông tin'
+      });
     }
+
+    // Validate role
+    if (!['user', 'admin'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vai trò không hợp lệ'
+      });
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Người dùng không tồn tại'
+      });
+    }
+
+    // Check if email is already taken by another user
+    const existingUser = await User.findOne({
+      where: {
+        email,
+        id: { [Op.ne]: id }
+      }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email đã được sử dụng'
+      });
+    }
+
+    // Update user
+    const updateData = {
+      full_name,
+      email,
+      role
+    };
+
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    await user.update(updateData);
+
+    // Lấy lại thông tin user sau khi update
+    const updatedUser = await User.findByPk(id);
+
+    console.log('User updated successfully:', updatedUser.toJSON());
+    res.json({
+      success: true,
+      message: 'Cập nhật người dùng thành công',
+      user: {
+        id: updatedUser.id,
+        full_name: updatedUser.full_name,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        created_at: updatedUser.created_at
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi cập nhật người dùng',
+      error: error.message
+    });
+  }
 };
 
 // Đổi mật khẩu

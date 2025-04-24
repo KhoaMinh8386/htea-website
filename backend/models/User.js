@@ -31,7 +31,10 @@ const User = sequelize.define('User', {
   },
   role: {
     type: DataTypes.STRING(20),
-    defaultValue: 'user'
+    defaultValue: 'user',
+    validate: {
+      isIn: [['user', 'admin', 'manager']]
+    }
   },
   phone: {
     type: DataTypes.STRING(20)
@@ -60,15 +63,12 @@ const User = sequelize.define('User', {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
       }
-      user.created_at = new Date();
-      user.updated_at = new Date();
     },
     beforeUpdate: async (user) => {
       if (user.changed('password')) {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
       }
-      user.updated_at = new Date();
     }
   }
 });

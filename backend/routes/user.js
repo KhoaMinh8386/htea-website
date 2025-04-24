@@ -10,10 +10,10 @@ const {
 } = require('../controllers/userController');
 
 // Routes yêu cầu quyền admin
-router.get('/', adminAuth, getUsers);
-router.get('/:id', adminAuth, getUserById);
-router.put('/:id', adminAuth, updateUser);
-router.put('/:id/status', adminAuth, toggleUserStatus);
+router.get('/', auth, adminAuth('admin'), getUsers);
+router.get('/:id', auth, adminAuth('admin'), getUserById);
+router.put('/:id', auth, adminAuth('admin'), updateUser);
+router.put('/:id/status', auth, adminAuth('admin'), toggleUserStatus);
 
 // Routes cho người dùng thông thường
 router.put('/:id/password', auth, changePassword);

@@ -2,20 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchUsers, createUser, updateUser, deleteUser } from '../../store/slices/adminSlice';
 import { toast } from 'react-toastify';
-import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
 
 const Users = () => {
   const dispatch = useDispatch();
-  const { users, loading, error } = useSelector((state) => state.admin);
+  const { users = [], loading, error } = useSelector((state) => state.admin);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
+    full_name: '',
     email: '',
     password: '',
-    role: 'staff',
+    role: 'user',
   });
 
   useEffect(() => {
@@ -32,18 +30,18 @@ const Users = () => {
     if (user) {
       setSelectedUser(user);
       setFormData({
-        name: user.name,
-        email: user.email,
+        full_name: user.full_name || '',
+        email: user.email || '',
         password: '',
-        role: user.role,
+        role: user.role || 'user',
       });
     } else {
       setSelectedUser(null);
       setFormData({
-        name: '',
+        full_name: '',
         email: '',
         password: '',
-        role: 'staff',
+        role: 'user',
       });
     }
     setShowModal(true);
@@ -53,10 +51,10 @@ const Users = () => {
     setShowModal(false);
     setSelectedUser(null);
     setFormData({
-      name: '',
+      full_name: '',
       email: '',
       password: '',
-      role: 'staff',
+      role: 'user',
     });
   };
 
@@ -101,10 +99,10 @@ const Users = () => {
     switch (role) {
       case 'admin':
         return 'Quản trị viên';
-      case 'staff':
-        return 'Nhân viên';
+      case 'user':
+        return 'Người dùng';
       default:
-        return role;
+        return 'Người dùng';
     }
   };
 
@@ -112,18 +110,19 @@ const Users = () => {
     switch (role) {
       case 'admin':
         return 'bg-purple-100 text-purple-800';
-      case 'staff':
+      case 'user':
         return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter((user) => {
+    const full_name = (user.full_name || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const search = searchTerm.toLowerCase();
+    return full_name.includes(search) || email.includes(search);
+  });
 
   if (loading) {
     return (
@@ -180,9 +179,9 @@ const Users = () => {
               <tr key={user.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">
-                    {user.name}
+                    {user.full_name || 'Không có tên'}
                   </div>
-                  <div className="text-sm text-gray-500">{user.email}</div>
+                  <div className="text-sm text-gray-500">{user.email || 'Không có email'}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span
@@ -195,9 +194,7 @@ const Users = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">
-                    {format(new Date(user.created_at), 'dd/MM/yyyy', {
-                      locale: vi,
-                    })}
+                    {user.created_at ? new Date(user.created_at).toLocaleDateString('vi-VN') : 'Không có ngày'}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -255,9 +252,9 @@ const Users = () => {
                 </label>
                 <input
                   type="text"
-                  value={formData.name}
+                  value={formData.full_name}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData({ ...formData, full_name: e.target.value })
                   }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                   required
@@ -306,7 +303,7 @@ const Users = () => {
                   }
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500"
                 >
-                  <option value="staff">Nhân viên</option>
+                  <option value="user">Người dùng</option>
                   <option value="admin">Quản trị viên</option>
                 </select>
               </div>

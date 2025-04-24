@@ -98,7 +98,7 @@ const Orders = () => {
                   </div>
                   <div className="mt-4 md:mt-0 text-right">
                     <p className="text-2xl font-bold text-green-800">
-                      {order.total_amount.toLocaleString('vi-VN')}đ
+                      {order.total_amount.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </p>
                     <span className={`inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium ${
                       order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -123,12 +123,12 @@ const Orders = () => {
                           <div className="ml-4">
                             <p className="font-medium text-gray-800">{item.product_name}</p>
                             <p className="text-sm text-gray-600">
-                              {item.quantity} x {item.price.toLocaleString('vi-VN')}đ
+                              {item.quantity} x {item.price.toLocaleString('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </p>
                           </div>
                         </div>
                         <p className="font-medium text-gray-800">
-                          {(item.price * item.quantity).toLocaleString('vi-VN')}đ
+                          {(item.price * item.quantity).toLocaleString('vi-VN', { style: 'currency', currency: 'VND', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                         </p>
                       </div>
                     ))}
